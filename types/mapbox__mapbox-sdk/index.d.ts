@@ -1,169 +1,305 @@
-// Type definitions for @mapbox/mapbox-sdk 0.6
+// Type definitions for @mapbox/mapbox-sdk 0.10
 // Project: https://github.com/mapbox/mapbox-sdk-js
 // Definitions by: Jeff Dye <https://github.com/jeffbdye>
 //                 Mike O'Meara <https://github.com/mikeomeara1>
 //                 chachan <https://github.com/chachan>
+//                 Anthony MacKinnon <https://github.com/AnthonyMacKinnon>
 // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
 // TypeScript Version: 3.0
 
-declare module '@mapbox/mapbox-sdk/lib/classes/mapi-client' {
-    import { MapiRequest, DirectionsApproach } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    export default class MapiClient {
-                       constructor(config: SdkConfig);
-                       accessToken: string;
-                       origin?: string;
-                       createRequest(requestOptions: any): MapiRequest;
-                   }
+declare module '@mapbox/mapbox-sdk' {
+    export default function Client(config: MapiClientConfig): MapiClient;
 
-    interface SdkConfig {
+    /**
+     * A low-level Mapbox API client. Use it to create service clients
+     * that share the same configuration.
+     *
+     * Services and `MapiRequest`s use the underlying `MapiClient` to
+     * determine how to create, send, and abort requests in a way
+     * that is appropriate to the configuration and environment
+     * (Node or the browser).
+     */
+    interface MapiClient extends MapiClientConfig {
+        createRequest<TResponse = any>(requestOptions: any): MapiRequest<TResponse>;
+    }
+
+    interface MapiClientConfig {
+        /**
+         * The Mapbox access token assigned to this client.
+         */
         accessToken: string;
+
+        /**
+         * The origin to use for API requests. Defaults to https://api.mapbox.com.
+         */
         origin?: string;
     }
-}
 
-declare module '@mapbox/mapbox-sdk/lib/classes/mapi-request' {
-    import { MapiResponse } from '@mapbox/mapbox-sdk/lib/classes/mapi-response';
-    import MapiClient from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
-    import { MapiError } from '@mapbox/mapbox-sdk/lib/classes/mapi-error';
+    interface EventEmitter<TResponse> {
+        /**
+         * Listeners will be called with a `MapiResponse`.
+         */
+        response: MapiResponse<TResponse>;
 
-    interface EventEmitter {
-        response: MapiResponse;
-        error: MapiError;
+        /**
+         * Listeners will be called with a `MapiError`.
+         */
+        error: MapiError<TResponse>;
+
+        /**
+         * Listeners will be called with `ProgressEvents`.
+         */
         downloadProgress: ProgressEvent;
+
+        /**
+         * Listeners will be called with `ProgressEvents`. Upload events are only available
+         * when the request includes a file.
+         */
         uploadProgress: ProgressEvent;
     }
 
-    interface MapiRequest {
+    /**
+     * A Mapbox API request.
+     *
+     * Note that creating a `MapiRequest` does *not* send the request automatically.
+     * Use the request's `send` method to send it off and get a `Promise`.
+     */
+    interface MapiRequest<TResponse = any> {
         /**
          * An event emitter.
          */
-        emitter: EventEmitter;
+        emitter: EventEmitter<TResponse>;
+
         /**
-         * This request's MapiClient.
+         * This request's `MapiClient`.
          */
         client: MapiClient;
+
         /**
          * If this request has been sent and received a response, the response is available on this property.
          */
-        response?: MapiResponse;
+        response?: MapiResponse<TResponse>;
+
         /**
          * If this request has been sent and received an error in response, the error is available on this property.
          */
-        error?: MapiError | Error;
+        error?: MapiError<TResponse> | Error;
+
         /**
-         * If the request has been aborted (via abort), this property will be true.
+         * If the request has been aborted (via [`abort`](#abort)), this property will be `true`.
          */
         aborted: boolean;
+
         /**
-         * If the request has been sent, this property will be true.
+         * If the request has been sent, this property will be `true`.
          * You cannot send the same request twice, so if you need to create a new request
-         * that is the equivalent of an existing one, use clone.
+         * that is the equivalent of an existing one, use [`clone`](#clone).
          */
         sent: boolean;
+
         /**
          * The request's path, including colon-prefixed route parameters.
          */
         path: string;
+
         /**
          * The request's origin.
          */
         origin: string;
+
         /**
          * The request's HTTP method.
          */
         method: string;
+
         /**
          * A query object, which will be transformed into a URL query string.
          */
         query: any;
+
         /**
          * A route parameters object, whose values will be interpolated the path.
          */
         params: any;
+
         /**
          * The request's headers.
          */
         headers: any;
+
         /**
-         * Data to send with the request. If the request has a body, it will also be sent with the header 'Content-Type: application/json'.
+         * Data to send with the request. If the request has a body, it will also be sent with
+         * the header `'Content-Type: application/json'`.
          */
-        body?: any;
+        body?: TResponse;
+
         /**
-         * A file to send with the request. The browser client accepts Blobs and ArrayBuffers.
+         * A file to send with the request. The browser client accepts Blobs and ArrayBuffers;
+         * the Node client accepts strings (filepaths) and ReadStreams.
          */
         file: Blob | ArrayBuffer | string;
+
+        /**
+         * The encoding of the response.
+         */
+        encoding: string;
+
+        /**
+         * The method to send the `file`. Options are `data` (x-www-form-urlencoded) or `form` (multipart/form-data).
+         */
+        sendFileAs: string;
+
+        /**
+         * Get the URL of the request.
+         *
+         * @param {string} [accessToken] - By default, the access token of the request's client is used.
+         * @return {string}
+         */
         url(accessToken?: string): string;
-        send(): Promise<MapiResponse>;
+
+        /**
+         * Send the request. Returns a Promise that resolves with a `MapiResponse`.
+         * You probably want to use `response.body`.
+         *
+         * `send` only retrieves the first page of paginated results. You can get
+         * the next page by using the `MapiResponse`'s [`nextPage`](#nextpage)
+         * function, or iterate through all pages using [`eachPage`](#eachpage)
+         * instead of `send`.
+         *
+         * @returns {Promise<MapiResponse<TResponse>>}
+         */
+        send(): Promise<MapiResponse<TResponse>>;
+
+        /**
+         * Abort the request.
+         *
+         * Any pending `Promise` returned by [`send`](#send) will be rejected with
+         * an error with `type: 'RequestAbortedError'`. If you've created a request
+         * that might be aborted, you need to catch and handle such errors.
+         *
+         * This method will also abort any requests created while fetching subsequent
+         * pages via [`eachPage`](#eachpage).
+         *
+         * If the request has not been sent or has already been aborted, nothing
+         * will happen.
+         */
         abort(): void;
-        eachPage(callback: PageCallbackFunction): void;
-        clone(): MapiRequest;
+
+        /**
+         * Invoke a callback for each page of a paginated API response.
+         *
+         * The callback should have the following signature:
+         *
+         * ```js
+         * (
+         *   error: MapiError,
+         *   response: MapiResponse,
+         *   next: () => void
+         * ) => void
+         * ```
+         *
+         * **The next page will not be fetched until you've invoked the
+         * `next` callback**, indicating that you're ready for it.
+         *
+         * @param {Function} callback
+         */
+        eachPage(callback: (
+            error: MapiError<TResponse>,
+            response: MapiResponse<TResponse>,
+            next: () => void
+        ) => void): void;
+
+        /**
+         * Clone this request.
+         *
+         * Each request can only be sent *once*. So if you'd like to send the
+         * same request again, clone it and send away.
+         *
+         * @returns {MapiRequest<TResponse>} - A new `MapiRequest` configured just like this one.
+         */
+        clone(): MapiRequest<TResponse>;
     }
 
-    interface PageCallbackFunction {
-        error: MapiError;
-        response: MapiResponse;
-        next: () => void;
-    }
-
-    type MapboxProfile = 'driving' | 'walking' | 'cycling';
-
-    type DirectionsApproach = 'unrestricted' | 'curb';
-}
-
-declare module '@mapbox/mapbox-sdk/lib/classes/mapi-response' {
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-
-    interface MapiResponse {
+    /**
+     * A Mapbox API response.
+     */
+    interface MapiResponse<TResponse> {
         /**
          * The response body, parsed as JSON.
          */
-        body: any;
+        body: TResponse;
+
         /**
          * The raw response body.
          */
         rawBody: string;
+
         /**
          * The response's status code.
          */
         statusCode: number;
+
         /**
          * The parsed response headers.
          */
         headers: any;
+
         /**
-         * The parsed response links
+         * The parsed response links.
          */
         links: any;
+
         /**
-         * The response's originating MapiRequest.
+         * The response's originating `MapiRequest`.
          */
-        request: MapiRequest;
+        request: MapiRequest<TResponse>;
+
+        /**
+         * Check if there is a next page that you can fetch.
+         *
+         * @returns {boolean}
+         */
         hasNextPage(): boolean;
-        nextPage(): MapiRequest;
+
+        /**
+         * Create a request for the next page, if there is one.
+         * If there is no next page, returns `null`.
+         *
+         * @returns {MapiRequest<TResponse> | null}
+         */
+        nextPage(): MapiRequest<TResponse>;
     }
-}
 
-declare module '@mapbox/mapbox-sdk/lib/classes/mapi-error' {
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-
-    interface MapiError {
+    /**
+     * A Mapbox API error.
+     *
+     * If there's an error during the API transaction,
+     * the Promise returned by `MapiRequest`'s [`send`](#send)
+     * method should reject with a `MapiError`.
+     */
+    interface MapiError<TResponse> {
         /**
          * The errored request.
          */
-        request: MapiRequest;
+        request: MapiRequest<TResponse>;
+
         /**
-         * The type of error. Usually this is 'HttpError'.
-         * If the request was aborted, so the error was not sent from the server, the type will be 'RequestAbortedError'.
+         * The type of error. Usually this is `'HttpError'`. If the request was aborted,
+         * so the error was not sent from the server, the type will be `'RequestAbortedError'`.
          */
         type: string;
+
         /**
-         * The numeric status code of the HTTP response
+         * The numeric status code of the HTTP response.
          */
         statusCode?: number;
+
         /**
-         * If the server sent a response body, this property exposes that response, parsed as JSON if possible.
+         * If the server sent a response body, this property exposes that response,
+         * parsed as JSON if possible.
          */
         body?: any;
+
         /**
          * Whatever message could be derived from the call site and HTTP response.
          */
@@ -172,138 +308,413 @@ declare module '@mapbox/mapbox-sdk/lib/classes/mapi-error' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/datasets' {
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
+    import { Feature, FeatureCollection } from 'geojson';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
-    /*********************************************************************************************************************
-     * Datasets Types
-     *********************************************************************************************************************/
-    export default function Datasets(config: SdkConfig | MapiClient): DatasetsService;
+    export default function Datasets(clientOrConfig: MapiClient | MapiClientConfig): DatasetsService;
 
+    /**
+     * Datasets API service.
+     *
+     * Learn more about this service and its responses in
+     * [the HTTP service documentation](https://docs.mapbox.com/api/maps/#datasets).
+     */
     interface DatasetsService {
         /**
          * List datasets in your account.
+         *
+         * See the [corresponding HTTP service documentation](https://docs.mapbox.com/api/maps/#list-datasets).
+         *
+         * @return {MapiRequest<Dataset[]>}
+         *
+         * @example
+         * datasetsClient.listDatasets()
+         *   .send()
+         *   .then(response => {
+         *     const datasets = response.body;
+         *   });
+         *
+         * @example
+         * datasetsClient.listDatasets()
+         *   .eachPage((error, response, next) => {
+         *     // Handle error or response and call next.
+         *   });
          */
-        listDatasets(): MapiRequest;
+        listDatasets(): MapiRequest<Dataset[]>;
+
         /**
-         *  Create a new, empty dataset.
-         * @param config Object
+         * Create a new, empty dataset.
+         *
+         * See the [corresponding HTTP service documentation](https://docs.mapbox.com/api/maps/#create-a-dataset).
+         *
+         * @param {Object} config
+         * @return {MapiRequest<Dataset>}
+         *
+         * @example
+         * datasetsClient.createDataset({
+         *   name: 'example',
+         *   description: 'An example dataset'
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const datasetMetadata = response.body;
+         *   });
          */
-        createDataset(config: { name?: string; description?: string }): MapiRequest;
+        createDataset(config: { name?: string; description?: string }): MapiRequest<Dataset>;
+
         /**
          * Get metadata about a dataset.
-         * @param config
+         *
+         * See the [corresponding HTTP service documentation](https://docs.mapbox.com/api/maps/#retrieve-a-dataset).
+         *
+         * @param {Object} config
+         * @return {MapiRequest<Dataset>}
+         *
+         * @example
+         * datasetsClient.getMetadata({
+         *   datasetId: 'dataset-id'
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const datasetMetadata = response.body;
+         *   })
          */
-        getMetadata(config: { datasetId: string }): MapiRequest;
+        getMetadata(config: { datasetId: string }): MapiRequest<Dataset>;
+
         /**
          * Update user-defined properties of a dataset's metadata.
-         * @param config
+         *
+         * See the [corresponding HTTP service documentation](https://docs.mapbox.com/api/maps/#update-a-dataset).
+         *
+         * @param {Object} config
+         * @return {MapiRequest<Dataset>}
+         *
+         * @example
+         * datasetsClient.updateMetadata({
+         *   datasetId: 'dataset-id',
+         *   name: 'foo'
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const datasetMetadata = response.body;
+         *   });
          */
-        updateMetadata(config: { datasetId?: string; name?: string; description?: string }): MapiRequest;
+        updateMetadata(config: { datasetId: string; name?: string; description?: string }): MapiRequest<Dataset>;
+
         /**
          * Delete a dataset, including all features it contains.
-         * @param config
+         *
+         * See the [corresponding HTTP service documentation](https://docs.mapbox.com/api/maps/#delete-a-dataset).
+         *
+         * @param {Object} config
+         * @return {MapiRequest<void>}
+         *
+         * @example
+         * datasetsClient.deleteDataset({
+         *   datasetId: 'dataset-id'
+         * })
+         *   .send()
+         *   .then(response => {
+         *     // Dataset is successfully deleted.
+         *   });
          */
-        deleteDataset(config: { datasetId?: string }): MapiRequest;
+        deleteDataset(config: { datasetId: string }): MapiRequest<void>;
+
         /**
          * List features in a dataset.
-         * This endpoint supports pagination. Use MapiRequest#eachPage or manually specify the limit and start options.
-         * @param config
+         *
+         * This endpoint supports pagination. Use `MapiRequest#eachPage` or manually specify
+         * the `limit` and `start` options.
+         *
+         * See the [corresponding HTTP service documentation](https://docs.mapbox.com/api/maps/#list-features).
+         *
+         * @param {Object} config
+         * @return {MapiRequest<FeatureCollection>}
+         *
+         * @example
+         * datasetsClient.listFeatures({
+         *   datasetId: 'dataset-id'
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const features = response.body;
+         *   });
          */
-        // implicit any
-        listFeatures(config: { datasetId: string; limit?: number; start?: string }): any;
+        listFeatures(config: {
+            datasetId: string;
+            /**
+             * Only list this number of features.
+             */
+            limit?: number;
+            /**
+             * The ID of the feature from which the listing should start.
+             */
+            start?: string
+        }): MapiRequest<FeatureCollection>;
+
         /**
          * Add a feature to a dataset or update an existing one.
-         * @param config
+         *
+         * See the
+         * [corresponding HTTP service documentation](https://docs.mapbox.com/api/maps/#insert-or-update-a-feature).
+         *
+         * @param {Object} config
+         * @return {MapiRequest<Feature>}
+         *
+         * @example
+         * datasetsClient.putFeature({
+         *   datasetId: 'dataset-id',
+         *   featureId: 'null-island',
+         *   feature: {
+         *     "type": "Feature",
+         *     "properties": { "name": "Null Island" },
+         *     "geometry": {
+         *       "type": "Point",
+         *       "coordinates": [0, 0]
+         *     }
+         *   }
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const feature = response.body;
+         *   });
          */
-        putFeature(config: { datasetId: string; featureId: string; feature: DataSetsFeature }): MapiRequest;
+        putFeature(config: {
+            datasetId: string;
+            featureId: string;
+            /**
+             * Valid GeoJSON that is not a `FeatureCollection`. If the feature has a top-level
+             * `id` property, it must match the `featureId` you specify.
+             */
+            feature: Feature
+        }): MapiRequest<Feature>;
+
         /**
          * Get a feature in a dataset.
-         * @param config
+         *
+         * See the [corresponding HTTP service documentation](https://docs.mapbox.com/api/maps/#retrieve-a-feature).
+         *
+         * @param {Object} config
+         * @return {MapiRequest<Feature>}
+         *
+         * @example
+         * datasetsClient.getFeature({
+         *   datasetId: 'dataset-id',
+         *   featureId: 'feature-id'
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const feature = response.body;
+         *   });
          */
-        // implicit any
-        getFeature(config: { datasetId: string; featureId: string }): any;
+        getFeature(config: { datasetId: string; featureId: string }): MapiRequest<Feature>;
+
         /**
          * Delete a feature in a dataset.
-         * @param config
+         *
+         * See the [corresponding HTTP service documentation](https://docs.mapbox.com/api/maps/#delete-a-feature).
+         *
+         * @param {Object} config
+         * @return {MapiRequest<void>}
+         *
+         * @example
+         * datasetsClient.deleteFeature({
+         *   datasetId: 'dataset-id',
+         *   featureId: 'feature-id'
+         * })
+         *   .send()
+         *   .then(response => {
+         *     // Feature is successfully deleted.
+         *   });
          */
-        // implicit any
-        deleteFeature(config: { datasetId: string; featureId: string }): any;
+        deleteFeature(config: { datasetId: string; featureId: string }): MapiRequest<void>;
     }
 
     /**
-     * All GeoJSON types except for FeatureCollection.
+     * The dataset object contains information pertinent to a specific dataset.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/maps/#the-dataset-object).
      */
-    type DataSetsFeature =
-        | GeoJSON.Point
-        | GeoJSON.MultiPoint
-        | GeoJSON.LineString
-        | GeoJSON.MultiLineString
-        | GeoJSON.Polygon
-        | GeoJSON.MultiPolygon
-        | GeoJSON.GeometryCollection
-        | GeoJSON.Feature<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>;
-
     interface Dataset {
         /**
-         * The username of the dataset owner
+         * The username of the dataset owner.
          */
         owner: string;
+
         /**
-         * Id for an existing dataset
+         * The ID for an existing dataset.
          */
         id: string;
+
         /*
-         * Date and time the dataset was created
+         * A timestamp indicating when the dataset was created.
          */
         created: string;
+
         /*
-         * Date and time the dataset was last modified
+         * A timestamp indicating when the dataset was last modified.
          */
         modified: string;
+
         /**
-         * The extent of features in the dataset as an array of west, south, east, north coordinates
+         * The extent of features in the dataset in the format [`west`, `south`, `east`, `north`].
          */
-        bounds: number[];
+        bounds: [number, number, number, number];
+
         /**
-         * The number of features in the dataset
+         * The number of features in the dataset.
          */
         features: number;
+
         /**
-         * The size of the dataset in bytes
+         * The size of the dataset in bytes.
          */
         size: number;
+
         /**
-         * The name of the dataset
+         * The name of the dataset.
          */
-        name: string;
+        name?: string;
+
         /**
-         * The description of the dataset
+         * A description of the dataset.
          */
-        description: string;
+        description?: string;
     }
 }
 
 declare module '@mapbox/mapbox-sdk/services/directions' {
     import * as GeoJSON from 'geojson';
     import { LngLatLike } from 'mapbox-gl';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
-    import { MapiRequest, MapboxProfile, DirectionsApproach } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
+    import { Feature, FeatureCollection } from 'geojson';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
-    export default function Directions(config: SdkConfig | MapiClient): DirectionsService;
+    export default function Directions(clientOrConfig: MapiClient | MapiClientConfig): DirectionsService;
 
+    /**
+     * Directions API service.
+     *
+     * Learn more about this service and its responses in
+     * [the HTTP service documentation](https://docs.mapbox.com/api/navigation/#directions).
+     */
     interface DirectionsService {
-        getDirections(request: DirectionsRequest): MapiRequest;
+        /**
+         * Get directions.
+         *
+         * Please read [the full HTTP service documentation](https://docs.mapbox.com/api/navigation/#directions)
+         * to understand all of the available options.
+         *
+         * @param {Object} config
+         * @return {MapiRequest<Directions>}
+         *
+         * @example
+         * directionsClient.getDirections({
+         *   profile: 'driving-traffic',
+         *   waypoints: [
+         *     {
+         *       coordinates: [13.4301, 52.5109],
+         *       approach: 'unrestricted'
+         *     },
+         *     {
+         *       coordinates: [13.4265, 52.508]
+         *     },
+         *     {
+         *       coordinates: [13.4194, 52.5072],
+         *       bearing: [100, 60]
+         *     }
+         *   ]
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const directions = response.body;
+         *   });
+         */
+        getDirections(config: {
+            /**
+             * Default: `'driving'`.
+             */
+            profile?: DirectionsProfile;
+
+            /**
+             * An ordered array of [`DirectionsWaypoint`](#directionswaypoint) objects,
+             * between 2 and 25 (inclusive).
+             */
+            waypoints: DirectionsWaypoint[];
+
+            /**
+             * Whether to try to return alternative routes. Default: `false`.
+             */
+            alternatives?: boolean;
+
+            /**
+             * Specify additional metadata that should be returned.
+             */
+            annotations?: DirectionsAnnotation[];
+
+            /**
+             * Should be used in conjunction with `steps`. Default: `false`.
+             */
+            bannerInstructions?: boolean;
+
+            /**
+             * Sets the allowed direction of travel when departing intermediate waypoints.
+             */
+            continueStraight?: boolean;
+
+            /**
+             * Exclude certain road types from routing. See HTTP service documentation for options.
+             */
+            exclude?: Extract<DirectionsClass, 'toll' | 'motorway' | 'ferry'>;
+
+            /**
+             * Format of the returned geometry. Default: `'polyline'`.
+             */
+            geometries?: DirectionsGeometry;
+
+            /**
+             * Language of returned turn-by-turn text instructions. See options listed in
+             * [the HTTP service documentation](https://docs.mapbox.com/api/navigation/#instructions-languages).
+             * Default: `'en'`.
+             */
+            language?: string;
+
+            /**
+             * Type of returned overview geometry. Default: `'simplified'`.
+             */
+            overview?: DirectionsOverview;
+
+            /**
+             * Emit instructions at roundabout exits. Default: `false`.
+             */
+            roundaboutExits?: boolean;
+
+            /**
+             * Whether to return steps and turn-by-turn instructions. Default: `false`.
+             */
+            steps?: boolean;
+
+            /**
+             * Whether or not to return SSML marked-up text for voice guidance along the route. Default: `false`.
+             */
+            voiceInstructions?: boolean;
+
+            /**
+             * Which type of units to return in the text for voice instructions. Default: `'imperial'`.
+             */
+            voiceUnits?: DirectionsUnits;
+        }): MapiRequest<Directions>;
     }
 
-    type DirectionsProfile = MapboxProfile | 'driving-traffic';
+    type MapboxProfile = 'driving' | 'walking' | 'cycling';
+    type DirectionsProfile = 'driving-traffic' | MapboxProfile;
 
+    type DirectionsApproach = 'unrestricted' | 'curb';
     type DirectionsAnnotation = 'duration' | 'distance' | 'speed' | 'congestion';
     type DirectionsGeometry = 'geojson' | 'polyline' | 'polyline6';
-    type DirectionsOverview = 'full' | 'simplified';
+    type DirectionsOverview = 'full' | 'simplified' | 'false';
     type DirectionsUnits = 'imperial' | 'metric';
     type DirectionsSide = 'left' | 'right';
-    type DirectionsMode = 'driving' | 'ferry' | 'unaccessible' | 'walking' | 'cycling' | 'train';
+    type DirectionsMode = 'driving' | 'walking' | 'cycling' | 'train' | 'ferry' | 'unaccessible';
     type DirectionsClass = 'toll' | 'ferry' | 'restricted' | 'motorway' | 'tunnel';
     type ManeuverModifier =
         | 'uturn'
@@ -313,9 +724,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
         | 'straight'
         | 'slight left'
         | 'left'
-        | 'sharp left'
-        | 'depart'
-        | 'arrive';
+        | 'sharp left';
     type ManeuverType =
         | 'turn'
         | 'new name'
@@ -334,475 +743,569 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
         | 'exit roundabout'
         | 'exit rotary';
 
-    interface DirectionsRequest {
-        /**
-         * Routing profile; either  mapbox/driving-traffic ,  mapbox/driving ,  mapbox/walking , or  mapbox/cycling
-         */
-        profile: DirectionsProfile;
-        waypoints: DirectionsRequestWaypoint[];
-        /**
-         * Whether to try to return alternative routes. An alternative is classified as a route that is significantly
-         * different than the fastest route, but also still reasonably fast. Such a route does not exist in all circumstances.
-         * Currently up to two alternatives can be returned. Can be  true or  false (default).
-         */
-        alternatives?: boolean;
-        /**
-         * Whether or not to return additional metadata along the route. Possible values are:  duration ,  distance ,  speed , and congestion .
-         * Several annotations can be used by including them as a comma-separated list. See the RouteLeg object for more details on
-         * what is included with annotations.
-         */
-        annotations?: DirectionsAnnotation[];
+    interface DirectionsWaypoint {
+        coordinates: [number, number];
 
         /**
-         * Whether or not to return banner objects associated with the  routeSteps .
-         * Should be used in conjunction with  steps . Can be  true or  false . The default is  false .
-         */
-        bannerInstructions?: boolean;
-
-        /**
-         * Sets the allowed direction of travel when departing intermediate waypoints. If  true , the route will continue in the same
-         * direction of travel. If  false , the route may continue in the opposite direction of travel. Defaults to  true for mapbox/driving and
-         * false for  mapbox/walking and  mapbox/cycling .
-         */
-        continueStraight?: boolean;
-        /**
-         * Exclude certain road types from routing. Valid values depend on the profile in use.
-         * The default is to not exclude anything from the profile selected.
-         */
-        exclude?: DirectionsProfile[];
-        /**
-         * Format of the returned geometry. Allowed values are:  geojson (as LineString ),
-         * polyline with precision 5,  polyline6 (a polyline with precision 6). The default value is  polyline .
-         */
-        geometries?: DirectionsGeometry;
-        /**
-         * Language of returned turn-by-turn text instructions. See supported languages . The default is  en for English.
-         */
-        language?: string;
-        /**
-         * Type of returned overview geometry. Can be  full (the most detailed geometry available),
-         * simplified (a simplified version of the full geometry), or  false (no overview geometry). The default is  simplified .
-         */
-        overview?: DirectionsOverview;
-
-        /**
-         * Emit instructions at roundabout exits. Can be  true or  false . The default is  false .
-         */
-        roundaboutExits?: boolean;
-        /**
-         * Whether to return steps and turn-by-turn instructions. Can be  true or  false . The default is  false .
-         */
-        steps?: boolean;
-        /**
-         * Whether or not to return SSML marked-up text for voice guidance along the route. Should be used in conjunction with steps .
-         * Can be  true or  false . The default is  false .
-         */
-        voiceInstructions?: boolean;
-        /**
-         * Which type of units to return in the text for voice instructions. Can be  imperial or  metric . Default is  imperial .
-         */
-        voiceUnits?: DirectionsUnits;
-    }
-
-    interface DirectionsRequestWaypoint {
-        /**
-         * Semicolon-separated list of  {longitude},{latitude} coordinate pairs to visit in order. There can be between 2 and 25 coordinates.
-         */
-        coordinates: number[] | LngLatLike;
-        /**
-         * Used to indicate how requested routes consider from which side of the road to approach a waypoint.
-         * Accepts unrestricted (default) or  curb . If set to  unrestricted , the routes can approach waypoints from either side of the road.
-         * If set to  curb , the route will be returned so that on arrival, the waypoint will be found on the side that corresponds with the
-         * driving_side of the region in which the returned route is located. Note that the  approaches parameter influences how you arrive at a waypoint,
-         * while  bearings influences how you start from a waypoint. If provided, the list of approaches must be the same length as the list of waypoints.
-         * However, you can skip a coordinate and show its position in the list with the  ; separator.
+         * Used to indicate how requested routes consider from which side of the road to approach the waypoint.
+         * Default: `'unrestricted'`.
          */
         approach?: DirectionsApproach;
-        /**
-         * Maximum distance in meters that each coordinate is allowed to move when snapped to a nearby road segment.
-         * There must be as many radiuses as there are coordinates in the request, each separated by ';'.
-         * Values can be any number greater than 0 or the string 'unlimited'.
-         * A  NoSegment error is returned if no routable road is found within the radius.
-         */
-        radius?: string | 'unlimited';
-    }
 
-    interface DirectionsResponse {
         /**
-         * Array of Route objects ordered by descending recommendation rank. May contain at most two routes.
+         * Used to filter the road segment the waypoint will be placed on by direction and dictates the angle
+         * of approach. This option should always be used in conjunction with a `radius`. The first value is
+         * an angle clockwise from true north between 0 and 360, and the second is the range of degrees the
+         * angle can deviate by.
          */
-        routes: Route[];
-        /**
-         * Array of Waypoint objects. Each waypoints is an input coordinate snapped to the road and path network.
-         * The waypoints appear in the array in the order of the input coordinates.
-         */
-        waypoints: Waypoint[];
-        /**
-         * String indicating the state of the response. This is a separate code than the HTTP status code.
-         * On normal valid responses, the value will be Ok.
-         */
-        code: string;
-        uuid: string;
-    }
+        bearing?: [number, number];
 
-    interface Waypoint {
         /**
-         * String with the name of the way the coordinate snapped to.
+         * Maximum distance in meters that the coordinate is allowed to move when snapped to a nearby road segment.
          */
-        name: string;
+        radius?: number | 'unlimited';
+
         /**
-         * Array of [ longitude, latitude ] for the snapped coordinate.
-         */
-        location: number[];
-        /**
-         * Used to filter the road segment the waypoint will be placed on by direction and dictates the angle of approach.
-         * This option should always be used in conjunction with the  radiuses parameter. The parameter takes two values per waypoint.
-         * The first value is an angle clockwise from true north between 0 and 360, and the second is the range of degrees the angle can deviate by.
-         * The recommended value for the range is 45° or 90°, as bearing measurements tend to be inaccurate.
-         * This is useful for making sure the new routes of rerouted vehicles continue traveling in their current direction.
-         * A request that does this would provide bearing and radius values for the first waypoint and leave the remaining values empty.
-         * If provided, the list of bearings must be the same length as the list of waypoints.
-         * However, you can skip a coordinate and show its position in the list with the  ; separator.
-         */
-        bearing?: number[];
-        /**
-         * Custom names for waypoints used for the arrival instruction in banners and voice instructions, each separated by  ; .
-         * Values can be any string and total number of all characters cannot exceed 500. If provided, the list of waypoint_names must be the same
-         * length as the list of waypoints, but you can skip a coordinate and show its position with the  ; separator.
+         * Custom name for the waypoint used for the arrival instruction in banners and voice instructions.
          */
         waypointName?: string;
     }
 
+    /**
+     * The response to a Directions API request.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#response-retrieve-directions).
+     */
+    interface Directions {
+        /**
+         * An array of route objects ordered by descending recommendation rank.
+         * The response object may contain at most two routes.
+         */
+        routes: Route[];
+
+        /**
+         * An array of waypoint objects. Each waypoint is an input coordinate snapped to the road and path
+         * network. The waypoints appear in the array in the order of the input coordinates.
+         */
+        waypoints: Waypoint[];
+
+        /**
+         * A string indicating the state of the response. This is a different code than the HTTP status code.
+         * On normal valid responses, the value will be Ok. For other responses, see the
+         * [Directions API errors table](https://docs.mapbox.com/api/navigation/#directions-api-errors).
+         */
+        code: string;
+
+        uuid: string;
+    }
+
+    /**
+     * The waypoint object represents an input coordinate snapped to the roads network.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#waypoint-object).
+     */
+    interface Waypoint {
+        /**
+         * A string with the name of the road or path to which the input coordinate has been snapped.
+         */
+        name: string;
+
+        /**
+         * An array containing the `[longitude, latitude]` of the snapped coordinate.
+         */
+        location: [number, number];
+
+        /**
+         * The straight-line distance from the coordinate specified in the query to the location it was snapped to.
+         */
+        distance?: number;
+    }
+
+    /**
+     * A route object describes a route through multiple waypoints.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#route-object).
+     */
     interface Route {
         /**
-         * Depending on the geometries parameter this is a GeoJSON LineString or a Polyline string.
-         * Depending on the overview parameter this is the complete route geometry (full), a simplified geometry
-         * to the zoom level at which the route can be displayed in full (simplified), or is not included (false)
+         * A float indicating the estimated travel time through the waypoints in seconds.
          */
-        geometry: GeoJSON.LineString | GeoJSON.MultiLineString;
+        duration: number;
+
         /**
-         * Array of RouteLeg objects.
+         * A float indicating the distance traveled through the waypoints in meters.
          */
-        legs: Leg[];
+        distance: number;
+
         /**
-         * String indicating which weight was used. The default is routability which is duration-based,
+         * A string indicating which weight was used. The default is `routability`, which is duration-based,
          * with additional penalties for less desirable maneuvers.
          */
         weight_name: string;
+
         /**
-         * Float indicating the weight in units described by weight_name
+         * A float indicating the weight in units described by `weight_name`.
          */
         weight: number;
+
         /**
-         * Float indicating the estimated travel time in seconds.
+         * Depending on the `geometries` query parameter, this is either a
+         * [GeoJSON LineString](https://tools.ietf.org/html/rfc7946#appendix-A.2) or a
+         * [Polyline string](https://developers.google.com/maps/documentation/utilities/polylinealgorithm).
+         * Depending on the `overview` query parameter, this is the complete route geometry (`full`), a simplified
+         * geometry to the zoom level at which the route can be displayed in full (`simplified`), or is not
+         * included (`false`).
          */
-        duration: number;
+        geometry: GeoJSON.LineString | string;
+
         /**
-         * Float indicating the distance traveled in meters.
+         * An array of route leg objects.
          */
-        distance: number;
+        legs: Leg[];
+
         /**
-         * String of the locale used for voice instructions. Defaults to en, and can be any accepted instruction language.
+         * A string of the locale used for voice instructions. Defaults to `en` (English). Can be any
+         * [accepted instruction language](https://docs.mapbox.com/api/navigation/#instructions-languages).
+         * `voiceLocale` is only present in the response when `voice_instructions=true`.
          */
         voiceLocale?: string;
     }
 
+    /**
+     * A route object contains a nested route leg object for each leg of the journey,
+     * which is one fewer than the number of input coordinates.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#route-leg-object).
+     */
     interface Leg {
         /**
-         * Depending on the summary parameter, either a String summarizing the route (true, default) or an empty String (false)
-         */
-        summary: string;
-        weight: number;
-        /**
-         * Number indicating the estimated travel time in seconds
-         */
-        duration: number;
-        /**
-         * Depending on the steps parameter, either an Array of RouteStep objects (true, default) or an empty array (false)
-         */
-        steps: Step[];
-        /**
-         * Number indicating the distance traveled in meters
+         * A number indicating the distance traveled between waypoints in meters.
          */
         distance: number;
+
+        /**
+         * A number indicating the estimated travel time between waypoints in seconds.
+         */
+        duration: number;
+
+        /**
+         * Depending on the optional `steps` parameter, either an array of route step objects (`steps=true`)
+         * or an empty array (`steps=false`, default).
+         */
+        steps: Step[];
+
+        /**
+         * A string summarizing the route.
+         */
+        summary: string;
+
         /**
          * An annotations object that contains additional details about each line segment along the route geometry.
          * Each entry in an annotations field corresponds to a coordinate along the route geometry.
          */
-        annotation: DirectionsAnnotation[];
+        annotation: {
+            /**
+             * The distance between each pair of coordinates in meters.
+             */
+            distance: number[];
+
+            /**
+             * The duration between each pair of coordinates in seconds.
+             */
+            duration: number[];
+
+            /**
+             * The average speed used in the calculation between the two points in each pair of coordinates in
+             * meters per second.
+             */
+            speed: number[];
+
+            /**
+             * The level of congestion, described as `severe`, `heavy`, `moderate`, `low` or `unknown`, between each
+             * entry in the array of coordinate pairs in the route leg. For any profile other than `mapbox/driving-traffic`
+             * a list of `unknown`s will be returned. A list of `unknown`s will also be returned if the route is very long.
+             */
+            congestion: ('severe' | 'heavy' | 'moderate' | 'low' | 'unknown')[];
+        };
+
+        /**
+         * A float indicating the weight in units described by `weight_name`.
+         */
+        weight: number;
     }
 
+    /**
+     * In a route leg object, a nested route step object includes one step maneuver object as well as information
+     * about travel to the following route step.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#route-step-object).
+     */
     interface Step {
+        /**
+         * One step maneuver object.
+         */
+        maneuver: Maneuver;
+
+        /**
+         * A number indicating the distance traveled in meters from the maneuver to the next route step.
+         */
+        distance: number;
+
+        /**
+         * A number indicating the estimated time traveled in seconds from the maneuver to the next route step.
+         */
+        duration: number;
+
+        /**
+         * Depending on the geometries parameter, this is a
+         * [GeoJSON LineString](https://tools.ietf.org/html/rfc7946#appendix-A.2) or a
+         * [Polyline string](https://developers.google.com/maps/documentation/utilities/polylinealgorithm)
+         * representing the full route geometry from this route step to the next route step.
+         */
+        geometry: GeoJSON.LineString | GeoJSON.MultiLineString;
+
+        /**
+         * A string with the name of the road or path that forms part of the route step.
+         */
+        name: string;
+
+        /**
+         * Any road designations associated with the road or path leading from this step’s maneuver to the next step’s
+         * maneuver. If multiple road designations are associated with the road, they are separated by semicolons.
+         * Typically consists of an alphabetic network code (identifying the road type or numbering system), a space or
+         * hyphen, and a route number. Optionally included, if data is available. **Note:** A network code is not
+         * necessarily globally unique, and should not be treated as though it is. A route number may not uniquely
+         * identify a road within a given network.
+         */
+        ref?: string;
+
+        /**
+         * A string with the destinations of the road or path along which the travel proceeds.
+         * Optionally included, if data is available.
+         */
+        destinations?: string;
+
+        /**
+         * A string with the exit numbers or names of the road or path. Optionally included, if data is available.
+         */
+        exits?: string;
+
+        /**
+         * The legal driving side at the location for this step. Either `left` or `right`.
+         */
+        driving_side: DirectionsSide;
+
+        /**
+         * A string indicating the mode of transportation.
+         */
+        mode: DirectionsMode;
+
+        /**
+         * A string containing an [IPA](https://en.wikipedia.org/wiki/International_Phonetic_Alphabet) phonetic
+         * transcription indicating how to pronounce the name in the `name` property. Omitted if pronunciation
+         * data is not available for the step.
+         */
+        pronunciation?: string;
+
         /**
          * Array of objects representing all intersections along the step.
          */
         intersections: Intersection[];
+
         /**
-         * The legal driving side at the location for this step. Either left or right.
+         * A float indicating the weight in units described by `weight_name`.
          */
-        driving_side: DirectionsSide;
-        /**
-         * Depending on the geometries parameter this is a GeoJSON LineString or a
-         * Polyline string representing the full route geometry from this RouteStep to the next RouteStep
-         */
-        geometry: GeoJSON.LineString | GeoJSON.MultiLineString;
-        /**
-         * String indicating the mode of transportation. Possible values:
-         */
-        mode: DirectionsMode;
-        /**
-         * One StepManeuver object
-         */
-        maneuver: Maneuver;
-        /**
-         * Any road designations associated with the road or path leading from this step’s maneuver to the next step’s maneuver.
-         * Optionally included, if data is available. If multiple road designations are associated with the road, they are separated by semicolons.
-         * A road designation typically consists of an alphabetic network code (identifying the road type or numbering system), a space or hyphen,
-         * and a route number. You should not assume that the network code is globally unique: for example, a network code of “NH” may appear on a
-         * “National Highway” or “New Hampshire”. Moreover, a route number may not even uniquely identify a road within a given network.
-         */
-        ref?: string;
         weight: number;
+
         /**
-         * Number indicating the estimated time traveled time in seconds from the maneuver to the next RouteStep.
+         * An array of voice instruction objects.
          */
-        duration: number;
-        /**
-         * String with the name of the way along which the travel proceeds
-         */
-        name: string;
-        /**
-         * Number indicating the distance traveled in meters from the maneuver to the next RouteStep.
-         */
-        distance: number;
         voiceInstructions: VoiceInstruction[];
+
+        /**
+         * An array of banner instruction objects.
+         */
         bannerInstructions: BannerInstruction[];
-        /**
-         * String with the destinations of the way along which the travel proceeds. Optionally included, if data is available.
-         */
-        destinations?: string;
-        /**
-         * String with the exit numbers or names of the way. Optionally included, if data is available.
-         */
-        exits?: string;
-        /**
-         * A string containing an IPA phonetic transcription indicating how to pronounce the name in the name property.
-         * This property is omitted if pronunciation data is unavailable for the step.
-         */
-        pronunciation?: string;
     }
 
-    interface Instruction {
-        /**
-         * String that contains all the text that should be displayed.
-         */
-        text: string;
-        /**
-         * Objects that, together, make up what should be displayed in the banner.
-         * Includes additional information intended to be used to aid in visual layout
-         */
-        components: Component[];
-        /**
-         * The type of maneuver. May be used in combination with the modifier (and, if it is a roundabout, the degrees) to for an icon to
-         * display. Possible values: 'turn', 'merge', 'depart', 'arrive', 'fork', 'off ramp', 'roundabout'
-         */
-        type?: string;
-        /**
-         * The modifier for the maneuver. Can be used in combination with the type (and, if it is a roundabout, the degrees)
-         * to for an icon to display. Possible values: 'left', 'right', 'slight left', 'slight right', 'sharp left', 'sharp right', 'straight', 'uturn'
-         */
-        modifier?: ManeuverModifier;
-        /**
-         * The degrees at which you will be exiting a roundabout, assuming 180 indicates going straight through the roundabout.
-         */
-        degrees?: number;
-        /**
-         * A string representing which side the of the street people drive on in that location. Can be 'left' or 'right'.
-         */
-        driving_side: DirectionsSide;
-    }
-
-    interface BannerInstruction {
-        /**
-         * Float indicating in meters, how far from the upcoming maneuver
-         * the banner instruction should begin being displayed. Only 1 banner should be displayed at a time.
-         */
-        distanceAlongGeometry: number;
-        /**
-         * Most important content to display to the user. Our SDK displays this text larger and at the top.
-         */
-        primary: Instruction;
-        /**
-         * Additional content useful for visual guidance. Our SDK displays this text slightly smaller and below the primary. Can be null.
-         */
-        secondary?: Instruction[];
-        then?: any;
-        /**
-         * Additional information that is included if we feel the driver needs a heads up about something.
-         * Can include information about the next maneuver (the one after the upcoming one) if the step is short -
-         * can be null, or can be lane information. If we have lane information, that trumps information about the next maneuver.
-         */
-        sub?: Sub;
-    }
-
-    interface Sub {
-        /**
-         * String that contains all the text that should be displayed.
-         */
-        text: string;
-        /**
-         * Objects that, together, make up what should be displayed in the banner.
-         * Includes additional information intended to be used to aid in visual layout
-         */
-        components: Component[];
-    }
-
-    interface Component {
-        /**
-         * String giving you more context about the component which may help in visual markup/display choices.
-         * If the type of the components is unknown it should be treated as text. Note: Introduction of new types
-         * is not considered a breaking change. See the Types of Banner Components table below for more info on each type.
-         */
-        type: string;
-        /**
-         * The sub-string of the parent object's text that may have additional context associated with it.
-         */
-        text: string;
-        /**
-         * The abbreviated form of text. If this is present, there will also be an abbr_priority value.
-         * See the Examples of Abbreviations table below for an example of using abbr and abbr_priority.
-         */
-        abbr?: string;
-        /**
-         * An integer indicating the order in which the abbreviation abbr should be used in place of text.
-         * The highest priority is 0 and a higher integer value means it should have a lower priority. There are no gaps in
-         * integer values. Multiple components can have the same abbr_priority and when this happens all components with the
-         * same abbr_priority should be abbreviated at the same time. Finding no larger values of abbr_priority means that the
-         * string is fully abbreviated.
-         */
-        abbr_priority?: number;
-        /**
-         * String pointing to a shield image to use instead of the text.
-         */
-        imageBaseURL?: string;
-        /**
-         * (present if component is lane): An array indicating which directions you can go from a lane (left, right, or straight).
-         * If the value is ['left', 'straight'], the driver can go straight or left from that lane
-         */
-        directions?: string[];
-        /**
-         * (present if component is lane): A boolean telling you if that lane can be used to complete the upcoming maneuver.
-         * If multiple lanes are active, then they can all be used to complete the upcoming maneuver.
-         */
-        active: boolean;
-    }
-
-    interface VoiceInstruction {
-        /**
-         * Float indicating in meters, how far from the upcoming maneuver the voice instruction should begin.
-         */
-        distanceAlongGeometry: number;
-        /**
-         * String containing the text of the verbal instruction.
-         */
-        announcement: string;
-        /**
-         * String with SSML markup for proper text and pronunciation. Note: this property is designed for use with Amazon Polly.
-         * The SSML tags contained here may not work with other text-to-speech engines.
-         */
-        ssmlAnnouncement: string;
-    }
-
+    /**
+     * A route step object contains a nested step maneuver object.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#step-maneuver-object).
+     */
     interface Maneuver {
         /**
-         * Number between 0 and 360 indicating the clockwise angle from true north to the direction of travel right after the maneuver
-         */
-        bearing_after: number;
-        /**
-         * Number between 0 and 360 indicating the clockwise angle from true north to the direction of travel right before the maneuver
+         * A number between `0` and `360` indicating the clockwise angle from true north to the direction of travel
+         * immediately _before_ the maneuver.
          */
         bearing_before: number;
+
         /**
-         * Array of [ longitude, latitude ] coordinates for the point of the maneuver
+         * A number between `0` and `360` indicating the clockwise angle from true north to the direction of travel
+         * immediately _after_ the maneuver.
          */
-        location: number[];
+        bearing_after: number;
+
         /**
-         * Optional String indicating the direction change of the maneuver
-         */
-        modifier?: ManeuverModifier;
-        /**
-         * String indicating the type of maneuver
-         */
-        type: ManeuverType;
-        /**
-         * A human-readable instruction of how to execute the returned maneuver
+         * A human-readable instruction of how to execute the returned maneuver.
          */
         instruction: string;
+
+        /**
+         * An array of `[longitude, latitude]` coordinates for the point of the maneuver.
+         */
+        location: [number, number];
+
+        /**
+         * An optional string indicating the direction change of the maneuver. The meaning of each
+         * modifier depends on the type property.
+         */
+        modifier?: ManeuverModifier;
+
+        /**
+         * A string indicating the type of maneuver. See the full list of maneuver types in the
+         * [maneuver types table](https://docs.mapbox.com/api/navigation/#maneuver-types).
+         */
+        type: ManeuverType;
     }
 
     interface Intersection {
         /**
-         * Index into the bearings/entry array. Used to extract the bearing after the turn. Namely, The clockwise angle from true north to
-         * the direction of travel after the maneuver/passing the intersection.
-         * The value is not supplied for arrive maneuvers.
+         * A `[longitude, latitude]` pair describing the location of the turn.
          */
-        out?: number;
+        location: [number, number];
+
         /**
-         * A list of entry flags, corresponding in a 1:1 relationship to the bearings.
-         * A value of true indicates that the respective road could be entered on a valid route.
-         * false indicates that the turn onto the respective road would violate a restriction.
-         */
-        entry: boolean[];
-        /**
-         * A list of bearing values (for example [0,90,180,270]) that are available at the intersection.
-         * The bearings describe all available roads at the intersection.
+         * A list of bearing values that are available at the intersection.The bearings describe all available roads
+         * at the intersection.
          */
         bearings: number[];
-        /**
-         * A [longitude, latitude] pair describing the location of the turn.
-         */
-        location: number[];
-        /**
-         * Index into bearings/entry array. Used to calculate the bearing before the turn. Namely, the clockwise angle from true
-         * north to the direction of travel before the maneuver/passing the intersection. To get the bearing in the direction of driving,
-         * the bearing has to be rotated by a value of 180. The value is not supplied for departure maneuvers.
-         */
-        in?: number;
+
         /**
          * An array of strings signifying the classes of the road exiting the intersection.
          */
         classes?: DirectionsClass[];
+
         /**
-         * Array of Lane objects that represent the available turn lanes at the intersection.
-         * If no lane information is available for an intersection, the lanes property will not be present.
+         * A list of entry flags, corresponding with the entries in `bearings`. If `true`, indicates that the
+         * respective road could be entered on a valid route. If `false`, the turn onto the respective road
+         * would violate a restriction.
          */
-        lanes: Lane[];
+        entry: boolean[];
+
+        /**
+         * The zero-based index for the intersection. This value can be used to apply the duration annotation
+         * that corresponds with the intersection. Only available on the `driving` profile.
+         */
+        geometry_index?: number;
+
+        /**
+         * The index in the `bearings` and `entry` arrays. Used to calculate the bearing before the turn.
+         * Namely, the clockwise angle from true north to the direction of travel before the maneuver/passing
+         * the intersection. To get the bearing in the direction of driving, the bearing has to be rotated by
+         * a value of 180. The value is not supplied for departure maneuvers.
+         */
+        in?: number;
+
+        /**
+         * The index in the `bearings` and `entry` arrays. Used to extract the bearing after the turn.
+         * Namely, the clockwise angle from true north to the direction of travel after the maneuver/passing
+         * the intersection. The value is not supplied for arrival maneuvers.
+         */
+        out?: number;
+
+        /**
+         * An array of lane objects that represent the available turn lanes at the intersection. If no lane
+         * information is available for an intersection, the `lanes` property will not be present.
+         */
+        lanes?: Lane[];
+
+        /**
+         * A number indicating the time required, in seconds, to traverse the intersection.
+         * Only available on the `driving` profile.
+         */
+        duration?: number;
     }
 
+    /**
+     * A route step object contains a nested lane object. The lane object describes the available turn lanes
+     * at an intersection. Lanes are provided in their order on the street, from left to right.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#lane-object).
+     */
     interface Lane {
         /**
-         * Boolean value for whether this lane can be taken to complete the maneuver. For instance, if the lane array has four objects and the
-         * first two are marked as valid, then the driver can take either of the left lanes and stay on the route.
+         * Indicates whether a lane can be taken to complete the maneuver (`true`) or not (`false`).
+         * For instance, if the lane array has four objects and the first two are valid, the driver can
+         * take either of the left lanes and stay on the route.
          */
         valid: boolean;
+
         /**
-         * Array of signs for each turn lane. There can be multiple signs. For example, a turning lane can have a sign with an arrow pointing left and another sign with an arrow pointing straight.
+         * An array of indications (based on signs, road markings, or both) for each turn lane. A road can have
+         * multiple indications. For example, a turn lane can have a sign with an arrow pointing left and another
+         * arrow pointing straight.
          */
-        indications: string[];
+        indications: ('none' | ManeuverModifier)[];
+    }
+
+    /**
+     * A route step object contains a nested voice instruction object if the optional `voice_instructions=true`
+     * query parameter is present. The voice instruction object contains the text that should be announced,
+     * along with how far from the maneuver it should be emitted. The system will announce the instructions
+     * during the route step in which the voice instruction object is nested, but the instructions refer to the
+     * maneuver in the _following_ step.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#voice-instruction-object).
+     */
+    interface VoiceInstruction {
+        /**
+         * A float indicating how far from the upcoming maneuver the voice instruction should begin in meters.
+         */
+        distanceAlongGeometry: number;
+
+        /**
+         * A string containing the text of the verbal instruction.
+         */
+        announcement: string;
+
+        /**
+         * A string with SSML markup for proper text and pronunciation. This property is designed for use with
+         * [Amazon Polly](https://aws.amazon.com/polly/). The SSML tags may not work with other text-to-speech engines.
+         */
+        ssmlAnnouncement: string;
+    }
+
+    /**
+     * A route step object contains a nested banner instruction object if the optional `banner_instructions=true`
+     * query parameter is present. The banner instruction object contains the contents of a banner that should be
+     * displayed as added visual guidance for a route. The banner instructions are children of the route steps during
+     * which they should be displayed, but they refer to the maneuver in the `following` step.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#banner-instruction-object).
+     */
+    interface BannerInstruction {
+        /**
+         * A float indicating how far from the upcoming maneuver the banner instruction should begin being
+         * displayed in meters. Only one banner should be displayed at a time.
+         */
+        distanceAlongGeometry: number;
+
+        /**
+         * The most important content to display to the user. This text is larger and at the top.
+         */
+        primary: BannerInstructionContent;
+
+        /**
+         * Additional content useful for visual guidance. This text is slightly smaller and below `primary`.
+         * Can be `null`.
+         */
+        secondary?: BannerInstructionContent;
+
+        /**
+         * Additional information that is included if the driver needs to be notified about something. Can include
+         * information about the _next_ maneuver (the one after the upcoming one) if the step is short. If lane
+         * information is available, that takes precedence over information about the _next_ maneuver.
+         */
+        sub?: BannerInstructionContent;
+
+        then?: any;
+    }
+
+    interface BannerInstructionContent {
+        /**
+         * A string that contains all the text that should be displayed.
+         */
+        text: string;
+
+        /**
+         * The type of maneuver. May be used in combination with the `modifier` (and, if it is a roundabout,
+         * the `degrees`) for an icon to display. Possible values: `turn`, `merge`, `depart`, `arrive`, `fork`,
+         * `off ramp`, and `roundabout`.
+         */
+        type?: ManeuverType;
+
+        /**
+         * The modifier for the maneuver. Can be used in combination with the `type` (and, if it is a roundabout,
+         * the `degrees`) for an icon to display.
+         */
+        modifier?: ManeuverModifier;
+
+        /**
+         * The degrees at which you will be exiting a roundabout, assuming `180` indicates going straight
+         * through the roundabout.
+         */
+        degrees?: number;
+
+        /**
+         * A string representing which side the of the street people drive on in that location.
+         * Can be `left` or `right`.
+         */
+        driving_side?: DirectionsSide;
+
+        /**
+         * Objects that, together, make up what should be displayed in the banner.
+         * Includes additional information intended to be used to aid in visual layout.
+         */
+        components: BannerComponent[];
+    }
+
+    interface BannerComponent {
+        /**
+         * A string with more context about the component that may help in visual markup and display choices.
+         * If the type of the component is unknown, it should be treated as text.
+         */
+        type?: 'text' | 'icon' | 'delimiter' | 'exit-number' | 'exit' | 'lane';
+
+        /**
+         * The sub-string of the `text` of the parent objects that may have additional context associated with it.
+         */
+        text: string;
+
+        /**
+         * The abbreviated form of `text`. If this is present, there will also be an `abbr_priority` value.
+         * For an example of using `abbr` and `abbr_priority`, see the
+         * [abbreviation examples](https://docs.mapbox.com/api/navigation/#abbreviation-examples) table.
+         */
+        abbr?: string;
+
+        /**
+         * An integer indicating the order in which the abbreviation `abbr` should be used in place of `text`.
+         * The highest priority is `0`, while a higher integer value means it should have a lower priority.
+         * There are no gaps in integer values. Multiple components can have the same `abbr_priority`. When this
+         * happens, all `components` with the same `abbr_priority` should be abbreviated at the same time.
+         * Finding no larger values of `abbr_priority` means that the string is fully abbreviated.
+         */
+        abbr_priority?: number;
+
+        /**
+         * A string pointing to a shield image to use instead of the text. The shield image can be retrieved as an
+         * SVG by appending `.svg` to the URL string, or it can be retrieved as a PNG at 1-3× pixel density by
+         * appending `@1x|@2x|@3x.png` to the URL string.
+         */
+        imageBaseURL?: string;
+
+        /**
+         * An array indicating which directions you can go from a lane (left, right, or straight). If the value is
+         * ['left', 'straight'], the driver can go straight or left from that lane. Present if `components.type`
+         * is `lane`.
+         */
+        directions?: string[];
+
+        /**
+         * A boolean that tells you whether that lane can be used to complete the upcoming maneuver. If multiple
+         * lanes are active, then they can all be used to complete the upcoming maneuver. Present if
+         * `components.type` is `lane`.
+         */
+        active?: boolean;
     }
 }
 
 declare module '@mapbox/mapbox-sdk/services/geocoding' {
     import { LngLatLike } from 'mapbox-gl';
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import { MapiResponse } from '@mapbox/mapbox-sdk/lib/classes/mapi-response';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
-    /*********************************************************************************************************************
-     * Geocoder Types
-     *********************************************************************************************************************/
-
-    export default function Geocoding(config: SdkConfig | MapiClient): GeocodeService;
+    export default function Geocoding(clientOrConfig: MapiClient | MapiClientConfig): GeocodeService;
 
     interface GeocodeService {
         forwardGeocode(request: GeocodeRequest): MapiRequest;
@@ -1009,22 +1512,85 @@ declare module '@mapbox/mapbox-sdk/services/geocoding' {
     }
 }
 
+declare module '@mapbox/mapbox-sdk/services/isochrone' {
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
+    import { MapboxProfile } from '@mapbox/mapbox-sdk/services/directions';
+
+    /*********************************************************************************************************************
+     * Isochrone Types
+     *********************************************************************************************************************/
+    export default function Isochrone(clientOrConfig: MapiClient | MapiClientConfig): IsochroneService;
+
+    interface IsochroneService {
+        /**
+         * Given a location and a routing profile, retrieve up to four isochrone contours.
+         * @param request
+         */
+        getContours(request: IsochroneRequest): MapiRequest;
+    }
+
+    interface IsochroneRequest {
+        /**
+         * A Mapbox Directions routing profile ID.
+         */
+        profile: MapboxProfile;
+
+        /**
+         * A  [longitude,latitude] coordinate pair around which to center the isochrone lines.
+         */
+        coordinates: [number, number];
+
+        /**
+         * The times in minutes to use for each isochrone contour. You can specify up to four contours.
+         * Times must be in increasing order. The maximum time that can be specified is 60 minutes.
+         */
+        minutes: number[];
+
+        /**
+         * The colors to use for each isochrone contour, specified as hex values without a leading #
+         * (for example, ff0000 for red). If this parameter is used, there must be the same number of
+         * colors as there are entries in contours_minutes. If no colors are specified, the Isochrone
+         * API will assign a default rainbow color scheme to the output.
+         */
+        colors?: string[];
+
+        /**
+         * Specify whether to return the contours as GeoJSON polygons (true) or linestrings (false, default).
+         * When polygons=true, any contour that forms a ring is returned as a polygon.
+         */
+        polygons?: boolean;
+
+        /**
+         * A floating point value from 0.0 to 1.0 that can be used to remove smaller contours. The default is 1.0.
+         * A value of 1.0 will only return the largest contour for a given time value. A value of 0.5 drops any
+         * contours that are less than half the area of the largest contour in the set of contours for that same
+         * time value.
+         */
+        denoise?: number;
+
+        /**
+         * A positive floating point value in meters used as the tolerance for Douglas-Peucker generalization.
+         * There is no upper bound. If no value is specified in the request, the Isochrone API will choose the
+         * most optimized generalization to use for the request. Note that the generalization of contours can
+         * lead to self-intersections, as well as intersections of adjacent contours.
+         */
+        generalize?: number;
+    }
+}
+
 declare module '@mapbox/mapbox-sdk/services/map-matching' {
     import { LngLatLike } from 'mapbox-gl';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
     import {
+        DirectionsApproach,
         DirectionsProfile,
         DirectionsAnnotation,
         DirectionsGeometry,
         DirectionsOverview,
         Leg,
     } from '@mapbox/mapbox-sdk/services/directions';
-    import { MapiRequest, DirectionsApproach } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
 
-    /*********************************************************************************************************************
-     * Map Matching Types
-     *********************************************************************************************************************/
-    export default function MapMatching(config: SdkConfig | MapiClient): MapMatchingService;
+    export default function MapMatching(clientOrConfig: MapiClient | MapiClientConfig): MapMatchingService;
 
     interface MapMatchingService {
         getMatching(request: MapMatchingRequest): MapiRequest;
@@ -1143,15 +1709,11 @@ declare module '@mapbox/mapbox-sdk/services/map-matching' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/matrix' {
-    import { DirectionsProfile, DirectionsAnnotation } from '@mapbox/mapbox-sdk/services/directions';
     import { Point } from '@mapbox/mapbox-sdk/services/map-matching';
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
+    import { DirectionsProfile, DirectionsAnnotation } from '@mapbox/mapbox-sdk/services/directions';
 
-    /*********************************************************************************************************************
-     * Matrix Types
-     *********************************************************************************************************************/
-    export default function Matrix(config: SdkConfig | MapiClient): MatrixService;
+    export default function Matrix(clientOrConfig: MapiClient | MapiClientConfig): MatrixService;
 
     interface MatrixService {
         /**
@@ -1184,14 +1746,10 @@ declare module '@mapbox/mapbox-sdk/services/matrix' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/optimization' {
-    import { MapiRequest, MapboxProfile, DirectionsApproach } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import { MapiResponse } from '@mapbox/mapbox-sdk/lib/classes/mapi-response';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
+    import { MapboxProfile, DirectionsApproach } from '@mapbox/mapbox-sdk/services/directions';
 
-    /*********************************************************************************************************************
-     * Optimization Types
-     *********************************************************************************************************************/
-    export default function Optimization(config: SdkConfig | MapiClient): OptimizationService; // SdkConfig | MapiClient
+    export default function Optimization(clientOrConfig: MapiClient | MapiClientConfig): OptimizationService;
 
     interface OptimizationService {
         getContours(config: OptimizationRequest): MapiRequest;
@@ -1271,14 +1829,10 @@ declare module '@mapbox/mapbox-sdk/services/optimization' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/static' {
-    import { LngLatLike, LngLatBoundsLike } from 'mapbox-gl';
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
+    import { Expression, Layer, LngLatLike, LngLatBoundsLike } from 'mapbox-gl';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
-    /*********************************************************************************************************************
-     * Static Map Types
-     *********************************************************************************************************************/
-    export default function StaticMap(config: SdkConfig | MapiClient): StaticMapService;
+    export default function StaticMap(clientOrConfig: MapiClient | MapiClientConfig): StaticMapService;
 
     interface StaticMapService {
         /**
@@ -1303,7 +1857,10 @@ declare module '@mapbox/mapbox-sdk/services/static' {
         | 'auto';
         overlays?: CustomMarkerOverlay[] | PathOverlay[] | GeoJsonOverlay[];
         highRes?: boolean;
-        insertOverlayBeforeLayer?: string;
+        before_layer?: string;
+        addlayer?: Layer;
+        setfilter?: Expression;
+        layer_id?: string;
         attribution?: boolean;
         logo?: boolean;
     }
@@ -1344,13 +1901,9 @@ declare module '@mapbox/mapbox-sdk/services/static' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/styles' {
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
-    /*********************************************************************************************************************
-    * Style Types
-    *********************************************************************************************************************/
-    export default function Styles(config: SdkConfig | MapiClient): StylesService;
+    export default function Styles(clientOrConfig: MapiClient | MapiClientConfig): StylesService;
 
     interface StylesService {
         /**
@@ -1490,14 +2043,10 @@ declare module '@mapbox/mapbox-sdk/services/styles' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/tilequery' {
-    import * as mapboxgl from 'mapbox-gl';
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
+    import { LngLatLike } from 'mapbox-gl';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
-    /*********************************************************************************************************************
-     * Tile Query (Places) Types
-     *********************************************************************************************************************/
-    export default function TileQuery(config: SdkConfig | MapiClient): TileQueryService;
+    export default function TileQuery(clientOrConfig: MapiClient | MapiClientConfig): TileQueryService;
 
     interface TileQueryService {
         /**
@@ -1515,7 +2064,7 @@ declare module '@mapbox/mapbox-sdk/services/tilequery' {
         /**
          * The longitude and latitude to be queried.
          */
-        coordinates: mapboxgl.LngLatLike;
+        coordinates: LngLatLike;
         /**
          * The approximate distance in meters to query for features. (optional, default 0)
          */
@@ -1539,41 +2088,114 @@ declare module '@mapbox/mapbox-sdk/services/tilequery' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/tilesets' {
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
-    /*********************************************************************************************************************
-     * Tileset Types
-     *********************************************************************************************************************/
-    export default function Tilesets(config: SdkConfig | MapiClient): TilesetsService;
+    export default function Tilesets(clientOrConfig: MapiClient | MapiClientConfig): TilesetsService;
 
     interface TilesetsService {
-        listTilesets(config: { ownerId: string }): MapiRequest;
+        /**
+         * List a user's tilesets.
+         * @param {ListTilesetsConfig} config
+         */
+        listTilesets(config: ListTilesetsConfig): MapiRequest;
+    }
+
+    interface ListTilesetsConfig {
+        /**
+         * The username of the account for which to list tilesets.
+         */
+        ownerId: string;
+
+        /**
+         * Filter results by tileset type, either `raster` or `vector`.
+         */
+        type?: TilesetType;
+
+        /**
+         * The maximum number of tilesets to return, from 1 to 500.
+         */
+        limit?: number;
+
+        /**
+         * Sort the listings by their `created` or `modified` timestamps.
+         */
+        sortBy?: 'created' | 'modified';
+
+        /**
+         * The tileset after which to start the listing.
+         */
+        start?: string;
+
+        /**
+         * Filter results by visibility, either `public` or `private`.
+         */
+        visibility?: TilesetVisibility;
     }
 
     interface Tileset {
-        type: string;
-        center: number[];
+        /**
+         * The kind of data contained, either `raster` or `vector`.
+         */
+        type: TilesetType;
+
+        /**
+         * The longitude, latitude, and zoom level for the center of the contained data, given in the
+         * format [lon, lat, zoom].
+         */
+        center: [number, number, number];
+
+        /**
+         * A timestamp indicating when the tileset was created.
+         */
         created: string;
+
+        /**
+         * A human-readable description of the tileset.
+         */
         description: string;
+
+        /**
+         * The storage in bytes consumed by the tileset.
+         */
         filesize: number;
+
+        /**
+         * The unique identifier for the tileset.
+         */
         id: string;
+
+        /**
+         * A timestamp indicating when the tileset was last modified.
+         */
         modified: string;
+
+        /**
+         * The name of the tileset.
+         */
         name: string;
-        visibility: string;
-        status: string;
+
+        /**
+         * The access control for the tileset, either `public` or `private`.
+         */
+        visibility: TilesetVisibility;
+
+        /**
+         * The processing status of the tileset, one of: `available`, `pending`, or `invalid`.
+         */
+        status: TilesetStatus;
     }
+
+    type TilesetStatus = 'available' | 'invalid' | 'pending';
+
+    type TilesetType = 'raster' | 'vector';
+
+    type TilesetVisibility = 'private' | 'public';
 }
 
 declare module '@mapbox/mapbox-sdk/services/tokens' {
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import { MapiResponse } from '@mapbox/mapbox-sdk/lib/classes/mapi-response';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
-    /*********************************************************************************************************************
-     * Token Types
-     *********************************************************************************************************************/
-    export default function Tokens(config: SdkConfig | MapiClient): TokensService;
+    export default function Tokens(clientOrConfig: MapiClient | MapiClientConfig): TokensService;
 
     interface TokensService {
         /**
@@ -1653,6 +2275,7 @@ declare module '@mapbox/mapbox-sdk/services/tokens' {
         note?: string;
         scopes?: string[];
         resources?: string[];
+        allowedUrls?: string[];
     }
 
     interface TemporaryTokenRequest {
@@ -1677,13 +2300,9 @@ declare module '@mapbox/mapbox-sdk/services/tokens' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/uploads' {
-    import { MapiRequest } from '@mapbox/mapbox-sdk/lib/classes/mapi-request';
-    import MapiClient, { SdkConfig } from '@mapbox/mapbox-sdk/lib/classes/mapi-client';
+    import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
-    /*********************************************************************************************************************
-     * Uploads Types
-     *********************************************************************************************************************/
-    export default function Uploads(config: SdkConfig | MapiClient): UploadsService;
+    export default function Uploads(clientOrConfig: MapiClient | MapiClientConfig): UploadsService;
 
     interface UploadsService {
         /**
