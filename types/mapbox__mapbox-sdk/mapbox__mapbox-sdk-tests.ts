@@ -4,10 +4,14 @@ import Directions from '@mapbox/mapbox-sdk/services/directions';
 import Geocoding from '@mapbox/mapbox-sdk/services/geocoding';
 import Isochrone from '@mapbox/mapbox-sdk/services/isochrone';
 import MapMatching from '@mapbox/mapbox-sdk/services/map-matching';
+import Matrix from '@mapbox/mapbox-sdk/services/matrix';
+import Optimization from '@mapbox/mapbox-sdk/services/optimization';
+
+
 import Styles, { StylesService } from '@mapbox/mapbox-sdk/services/styles';
 import StaticMap, { StaticMapService } from '@mapbox/mapbox-sdk/services/static';
-import { LineString } from 'geojson';
 import Tilesets, { TilesetsService } from '@mapbox/mapbox-sdk/services/tilesets';
+import { LineString } from 'geojson';
 
 /**
  * MapiClient
@@ -260,6 +264,85 @@ isochroneService
 
 // $ExpectType MapMatchingService
 const mapMatchingService = MapMatching(client);
+
+mapMatchingService
+    .getMatch({
+        points: [
+            {
+                coordinates: [-117.17283, 32.712041],
+                approach: 'curb'
+            },
+            {
+                coordinates: [-117.17291, 32.712256],
+                isWaypoint: false
+            },
+            {
+                coordinates: [-117.17292, 32.712444]
+            },
+            {
+                coordinates: [-117.172922, 32.71257],
+                waypointName: 'point-a',
+                approach: 'unrestricted'
+            },
+            {
+                coordinates: [-117.172985, 32.7126]
+            },
+            {
+                coordinates: [-117.173143, 32.712597]
+            },
+            {
+                coordinates: [-117.173345, 32.712546]
+            }
+        ],
+        tidy: false,
+    })
+    .send()
+    .then(response => {
+        // $ExpectType MapMatchingResponse
+        const matching = response.body;
+    });
+
+/**
+ * Matrix
+ */
+
+// $ExpectType MatrixService
+const matrixService = Matrix(client);
+
+matrixService
+    .getMatrix({
+        points: [
+        {
+            coordinates: [2.2, 1.1]
+        },
+        {
+            coordinates: [2.2, 1.1],
+            approach: 'curb'
+        },
+        {
+            coordinates: [3.2, 1.1]
+        },
+        {
+            coordinates: [4.2, 1.1]
+        }
+        ],
+        profile: 'walking'
+    })
+    .send()
+    .then(response => {
+        // $ExpectType MatrixResponse
+        const matrix = response.body;
+    });
+
+/**
+ * Optimization
+ */
+
+// $ExpectType OptimizationService
+const optimizationService = Optimization(client);
+
+
+
 
 const stylesService: StylesService = Styles(config);
 stylesService.putStyleIcon({

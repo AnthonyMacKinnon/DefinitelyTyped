@@ -86,14 +86,14 @@ declare module '@mapbox/mapbox-sdk' {
         error?: MapiError<TResponse> | Error;
 
         /**
-         * If the request has been aborted (via [`abort`](#abort)), this property will be `true`.
+         * If the request has been aborted (via `abort`), this property will be `true`.
          */
         aborted: boolean;
 
         /**
          * If the request has been sent, this property will be `true`.
          * You cannot send the same request twice, so if you need to create a new request
-         * that is the equivalent of an existing one, use [`clone`](#clone).
+         * that is the equivalent of an existing one, use `clone`.
          */
         sent: boolean;
 
@@ -162,9 +162,8 @@ declare module '@mapbox/mapbox-sdk' {
          * You probably want to use `response.body`.
          *
          * `send` only retrieves the first page of paginated results. You can get
-         * the next page by using the `MapiResponse`'s [`nextPage`](#nextpage)
-         * function, or iterate through all pages using [`eachPage`](#eachpage)
-         * instead of `send`.
+         * the next page by using the `MapiResponse`'s `nextPage` function, or
+         * iterate through all pages using `eachPage` instead of `send`.
          *
          * @returns {Promise<MapiResponse<TResponse>>}
          */
@@ -173,12 +172,12 @@ declare module '@mapbox/mapbox-sdk' {
         /**
          * Abort the request.
          *
-         * Any pending `Promise` returned by [`send`](#send) will be rejected with
+         * Any pending `Promise` returned by `send` will be rejected with
          * an error with `type: 'RequestAbortedError'`. If you've created a request
          * that might be aborted, you need to catch and handle such errors.
          *
          * This method will also abort any requests created while fetching subsequent
-         * pages via [`eachPage`](#eachpage).
+         * pages via `eachPage`.
          *
          * If the request has not been sent or has already been aborted, nothing
          * will happen.
@@ -274,7 +273,7 @@ declare module '@mapbox/mapbox-sdk' {
      * A Mapbox API error.
      *
      * If there's an error during the API transaction,
-     * the Promise returned by `MapiRequest`'s [`send`](#send)
+     * the Promise returned by `MapiRequest`'s `send`
      * method should reject with a `MapiError`.
      */
     interface MapiError<TResponse> {
@@ -703,8 +702,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
             profile?: RoutingProfile;
 
             /**
-             * An ordered array of [`DirectionsWaypoint`](#directionswaypoint) objects,
-             * between 2 and 25 (inclusive).
+             * An ordered array of `DirectionsWaypoint` objects, between 2 and 25 (inclusive).
              */
             waypoints: DirectionsWaypoint[];
 
@@ -736,7 +734,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
             /**
              * Format of the returned geometry. Default: `'polyline'`.
              */
-            geometries?: DirectionsGeometry;
+            geometries?: GeometryFormat;
 
             /**
              * Language of returned turn-by-turn text instructions. See options listed in
@@ -748,7 +746,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
             /**
              * Type of returned overview geometry. Default: `'simplified'`.
              */
-            overview?: DirectionsOverview;
+            overview?: OverviewGeometryType;
 
             /**
              * Emit instructions at roundabout exits. Default: `false`.
@@ -776,8 +774,8 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
 
     type DirectionsApproach = 'unrestricted' | 'curb';
     type DirectionsAnnotation = 'duration' | 'distance' | 'speed' | 'congestion';
-    type DirectionsGeometry = 'geojson' | 'polyline' | 'polyline6';
-    type DirectionsOverview = 'full' | 'simplified' | 'false';
+    type GeometryFormat = 'geojson' | 'polyline' | 'polyline6';
+    type OverviewGeometryType = 'full' | 'simplified' | 'false';
     type DirectionsUnits = 'imperial' | 'metric';
     type DirectionsSide = 'left' | 'right';
     type DirectionsMode = 'driving' | 'walking' | 'cycling' | 'train' | 'ferry' | 'unaccessible';
@@ -1368,7 +1366,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/geocoding' {
-    import { Feature, FeatureCollection, GeoJsonProperties, Point } from 'geojson';
+    import { Feature, FeatureCollection, Point } from 'geojson';
     import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
     export default function Geocoding(clientOrConfig: MapiClient | MapiClientConfig): GeocodingService;
@@ -1799,7 +1797,7 @@ declare module '@mapbox/mapbox-sdk/services/geocoding' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/isochrone' {
-    import { Feature, FeatureCollection, LineString, Polygon } from 'geojson';
+    import { FeatureCollection, LineString, Polygon } from 'geojson';
     import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
     import { RoutingProfile } from '@mapbox/mapbox-sdk/services/directions';
 
@@ -1921,179 +1919,366 @@ declare module '@mapbox/mapbox-sdk/services/isochrone' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/map-matching' {
-    import { LngLatLike } from 'mapbox-gl';
     import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
     import {
         DirectionsApproach,
-        DirectionsProfile,
         DirectionsAnnotation,
-        DirectionsGeometry,
-        DirectionsOverview,
-        Leg,
+        GeometryFormat,
+        OverviewGeometryType,
+        Route,
+        RoutingProfile,
+        Waypoint
     } from '@mapbox/mapbox-sdk/services/directions';
 
     export default function MapMatching(clientOrConfig: MapiClient | MapiClientConfig): MapMatchingService;
 
+    /**
+     * Map Matching API service.
+     *
+     * Learn more about this service and its responses in
+     * [the HTTP service documentation](https://docs.mapbox.com/api/navigation/#map-matching).
+     */
     interface MapMatchingService {
-        getMatching(request: MapMatchingRequest): MapiRequest;
+        /**
+         * Snap recorded location traces to roads and paths.
+         *
+         * @param {Object} config
+         * @return {MapiRequest<MapMatchingResponse>}
+         *
+         * @example
+         * mapMatchingClient.getMatch({
+         *   points: [
+         *     {
+         *       coordinates: [-117.17283, 32.712041],
+         *       approach: 'curb'
+         *     },
+         *     {
+         *       coordinates: [-117.17291, 32.712256],
+         *       isWaypoint: false
+         *     },
+         *     {
+         *       coordinates: [-117.17292, 32.712444]
+         *     },
+         *     {
+         *       coordinates: [-117.172922, 32.71257],
+         *       waypointName: 'point-a',
+         *       approach: 'unrestricted'
+         *     },
+         *     {
+         *       coordinates: [-117.172985, 32.7126]
+         *     },
+         *     {
+         *       coordinates: [-117.173143, 32.712597]
+         *     },
+         *     {
+         *       coordinates: [-117.173345, 32.712546]
+         *     }
+         *   ],
+         *   tidy: false,
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const matching = response.body;
+         *   })
+         */
+        getMatch(config: {
+            /**
+             * An ordered array of `MapMatchingPoint`s, between 2 and 100 (inclusive).
+             */
+            points: MapMatchingPoint[];
+
+            /**
+             * A directions profile ID. Default: `driving`.
+             */
+            profile?: RoutingProfile;
+
+            /**
+             * Specify additional metadata that should be returned.
+             */
+            annotations?: DirectionsAnnotation[];
+
+            /**
+             * Format of the returned geometry. Default: `'polyline'`.
+             */
+            geometries?: GeometryFormat;
+
+            /**
+             * Language of returned turn-by-turn text instructions. See
+             * [supported languages](https://docs.mapbox.com/api/navigation/#instructions-languages).
+             * Default: `'en'`.
+             */
+            language?: string;
+
+            /**
+             * Type of returned overview geometry. Default: `'simplified'`.
+             */
+            overview?: OverviewGeometryType;
+
+            /**
+             * Whether to return steps and turn-by-turn instructions. Default: `false`.
+             */
+            steps?: boolean;
+
+            /**
+             * Whether or not to transparently remove clusters and re-sample traces for improved map matching results.
+             * Default: `false`.
+             */
+            tidy?: boolean;
+        }): MapiRequest<MapMatchingResponse>;
     }
 
-    interface MapMatchingRequest {
-        /**
-         * An ordered array of MapMatchingPoints, between 2 and 100 (inclusive).
-         */
-        points: MapMatchingPoint[];
-        /**
-         * A directions profile ID. (optional, default driving)
-         */
-        profile?: DirectionsProfile;
-        /**
-         * Specify additional metadata that should be returned.
-         */
-        annotations?: DirectionsAnnotation;
-        /**
-         * Format of the returned geometry. (optional, default "polyline")
-         */
-        geometries?: DirectionsGeometry;
-        /**
-         * Language of returned turn-by-turn text instructions. See supported languages. (optional, default "en")
-         */
-        language?: string;
-        /**
-         * Type of returned overview geometry. (optional, default "simplified"
-         */
-        overview?: DirectionsOverview;
-        /**
-         * Whether to return steps and turn-by-turn instructions. (optional, default false)
-         */
-        steps?: boolean;
-        /**
-         * Whether or not to transparently remove clusters and re-sample traces for improved map matching results. (optional, default false)
-         */
-        tidy?: boolean;
-    }
+    interface MapMatchingPoint {
+        coordinates: [number, number];
 
-    interface Point {
-        coordinates: LngLatLike;
         /**
          * Used to indicate how requested routes consider from which side of the road to approach a waypoint.
+         * Default: `'unrestricted'`.
          */
         approach?: DirectionsApproach;
-    }
 
-    interface MapMatchingPoint extends Point {
         /**
-         * A number in meters indicating the assumed precision of the used tracking device.
+         * A number in meters indicating the assumed precision of the used tracking device. Default: `5`.
          */
         radius?: number;
+
         /**
          * Whether this coordinate is waypoint or not. The first and last coordinates will always be waypoints.
+         * Default: `true`.
          */
         isWaypoint?: boolean;
+
         /**
          * Custom name for the waypoint used for the arrival instruction in banners and voice instructions.
-         * Will be ignored unless isWaypoint is true.
+         * Will be ignored unless `isWaypoint` is `true`.
          */
-        waypointName?: boolean;
+        waypointName?: string;
+
         /**
          * Datetime corresponding to the coordinate.
          */
         timestamp?: string | number | Date;
     }
 
+    /**
+     * The response to a Map Matching API request.
+     *
+     * See the
+     * [corresponding documentation](https://docs.mapbox.com/api/navigation/#response-retrieve-a-match).
+     */
     interface MapMatchingResponse {
         /**
-         * An array of Match objects.
-         */
-        matchings: Matching[];
-        /**
-         * An array of Tracepoint objects representing the location an input point was matched with.
-         * Array of Waypoint objects representing all input points of the trace in the order they were matched.
-         * If a trace point is omitted by map matching because it is an outlier, the entry will be null.
-         */
-        tracepoints: Tracepoint[];
-        /**
-         * A string depicting the state of the response; see below for options
+         * A string indicating the state of the response. The potential values are listed in the
+         * [Map Matching status codes section](https://docs.mapbox.com/api/navigation/#map-matching-api-errors).
          */
         code: string;
+
+        /**
+         * An array of match objects.
+         */
+        matchings: Match[];
+
+        /**
+         * An array of tracepoint objects that represent the location an input point was matched with, in the order in
+         * which they were matched. If a trace point is omitted by the Map Matching API because it is an outlier, the
+         * entry will be `null`.
+         */
+        tracepoints: Tracepoint[];
     }
 
-    interface Tracepoint {
+    /**
+     * A match object is a route object with an additional confidence field.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#match-object).
+     */
+    interface Match extends Route {
         /**
-         * Number of probable alternative matchings for this trace point. A value of zero indicates that this point was matched unambiguously.
-         * Split the trace at these points for incremental map matching.
-         */
-        alternatives_count: number;
-        /**
-         * Index of the waypoint inside the matched route.
-         */
-        waypoint_index: number;
-        location: number[];
-        name: string;
-        /**
-         * Index to the match object in matchings the sub-trace was matched to.
-         */
-        matchings_index: number;
-    }
-
-    interface Matching {
-        /**
-         * a number between 0 (low) and 1 (high) indicating level of confidence in the returned match
+         * A float indicating the level of confidence in the returned match, from `0` (low) to `1` (high).
          */
         confidence: number;
-        geometry: string;
-        legs: Leg[];
-        distance: number;
-        duration: number;
-        weight_name: string;
-        weight: number;
+    }
+
+    /**
+     * A tracepoint object is a waypoint object with three additional fields: `matchings_index`, `waypoint_index`,
+     * and `alternatives_count`.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#tracepoint-object).
+     */
+    interface Tracepoint extends Waypoint {
+        /**
+         * The index of the match object in `matchings` that the sub-trace was matched to.
+         */
+        matchings_index: number;
+
+        /**
+         * The index of the waypoint inside the matched route.
+         */
+        waypoint_index: number;
+
+        /**
+         * The number of probable alternative matchings for this trace point. A value of `0` indicates that this
+         * point was matched unambiguously. Split the trace at these points for incremental map matching.
+         */
+        alternatives_count: number;
     }
 }
 
 declare module '@mapbox/mapbox-sdk/services/matrix' {
-    import { Point } from '@mapbox/mapbox-sdk/services/map-matching';
     import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
-    import { DirectionsProfile, DirectionsAnnotation } from '@mapbox/mapbox-sdk/services/directions';
+    import { DirectionsAnnotation, DirectionsApproach, RoutingProfile, Waypoint } from '@mapbox/mapbox-sdk/services/directions';
 
     export default function Matrix(clientOrConfig: MapiClient | MapiClientConfig): MatrixService;
 
+    /**
+     * Matrix API service.
+     *
+     * Learn more about this service and its responses in
+     * [the HTTP service documentation](https://docs.mapbox.com/api/navigation/#matrix).
+     */
     interface MatrixService {
         /**
          * Get a duration and/or distance matrix showing travel times and distances between coordinates.
-         * @param request
+         *
+         * @param {Object} config
+         * @return {MapiRequest<MatrixResponse>}
+         *
+         * @example
+         * matrixClient.getMatrix({
+         *   points: [
+         *     {
+         *       coordinates: [2.2, 1.1]
+         *     },
+         *     {
+         *       coordinates: [2.2, 1.1],
+         *       approach: 'curb'
+         *     },
+         *     {
+         *       coordinates: [3.2, 1.1]
+         *     },
+         *     {
+         *       coordinates: [4.2, 1.1]
+         *     }
+         *   ],
+         *   profile: 'walking'
+         * })
+         *   .send()
+         *   .then(response => {
+         *       const matrix = response.body;
+         *   });
          */
-        getMatrix(request: MatrixRequest): MapiRequest;
+        getMatrix(config: {
+            /**
+             * An ordered array of `MatrixPoint`s, between 2 and 100 (inclusive).
+             */
+            points: MatrixPoint[];
+
+            /**
+             * A Mapbox Directions routing profile ID. Default: `'driving'`.
+             */
+            profile?: RoutingProfile;
+
+            /**
+             * Use coordinates with given index as sources. Default: `'all'`.
+             */
+            sources?: 'all' | number[];
+
+            /**
+             * Use coordinates with given index as destinations. Default: `'all'`.
+             */
+            destinations?: 'all' | number[];
+
+            /**
+             * Used to specify resulting matrices.
+             */
+            annotations?: Extract<DirectionsAnnotation, 'duration' | 'distance'>[];
+        }): MapiRequest<MatrixResponse>;
     }
 
-    interface MatrixRequest {
-        points: Point[];
-        profile?: DirectionsProfile;
-        sources?: number[];
-        destinations?: number[];
-        annotations?: DirectionsAnnotation;
+    interface MatrixPoint {
+        coordinates: [number, number];
+
+        /**
+         * Used to indicate how requested routes consider from which side of the road to approach the point.
+         * Default: `'unrestricted'`.
+         */
+        approach?: DirectionsApproach;
     }
 
+    /**
+     * The response to a Matrix API request.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#response-retrieve-a-matrix).
+     */
     interface MatrixResponse {
+        /**
+         * A string indicating the state of the response. This is a separate code than the HTTP status code. On normal
+         * valid responses, the value will be `Ok`. See the errors section below for more information.
+         */
         code: string;
-        durations?: number[][];
-        distances?: number[][];
-        destinations: Destination[];
-        sources: Destination[];
-    }
 
-    interface Destination {
-        location: number[];
-        name: string;
+        /**
+         * Durations as an array of arrays that represent the matrix in row-major order. `durations[i][j]` gives the
+         * travel time from the ith source to the jth destination. All values are in seconds. The duration between the
+         * same coordinate is always `0`. If a duration cannot be found, the result is `null`.
+         */
+        durations?: number[][];
+
+        /**
+         * Distances as an array of arrays that represent the matrix in row-major order. `distances[i][j]` gives the
+         * travel distance from the ith source to the jth destination. All values are in meters. The distance between
+         * the same coordinate is always `0`. If a distance cannot be found, the result is `null`.
+         */
+        distances?: number[][];
+
+        /**
+         * An array of waypoint objects. Each waypoint is an input coordinate snapped to the road and path network. The
+         * waypoints appear in the array in the order of the input coordinates, or in the order specified in the
+         * `sources` query parameter.
+         */
+        sources: Waypoint[];
+
+        /**
+         * An array of waypoint objects. Each waypoint is an input coordinate snapped to the road and path network. The
+         * waypoints appear in the array in the order of the input coordinates, or in the order specified in the
+         * `destinations` query parameter.
+         */
+        destinations: Waypoint[];
     }
 }
 
 declare module '@mapbox/mapbox-sdk/services/optimization' {
     import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
-    import { MapboxProfile, DirectionsApproach } from '@mapbox/mapbox-sdk/services/directions';
+    import { DirectionsApproach, RoutingProfile } from '@mapbox/mapbox-sdk/services/directions';
 
     export default function Optimization(clientOrConfig: MapiClient | MapiClientConfig): OptimizationService;
 
+    /**
+     * Optimization API service.
+     *
+     * Learn more about this service and its responses in
+     * [the HTTP service documentation](https://docs.mapbox.com/api/navigation/#optimization).
+     */
     interface OptimizationService {
+        /**
+         * Get a duration-optimized route.
+         *
+         * Please read [the full HTTP service documentation](https://docs.mapbox.com/api/navigation/#optimization)
+         * to understand all of the available options.
+         *
+         * @param {Object} config
+         * @param {'driving'|'walking'|'cycling'} [config.profile="driving"]
+         * @param {Array<OptimizationWaypoint>} config.waypoints - An ordered array of [`OptimizationWaypoint`](#optimizationwaypoint) objects, between 2 and 12 (inclusive).
+         * @param {Array<'duration'|'distance'|'speed'>} [config.annotations] - Specify additional metadata that should be returned.
+         * @param {'any'|'last'} [config.destination="any"] - Returned route ends at `any` or `last` coordinate.
+         * @param {Array<Distribution>} [config.distributions] - An ordered array of [`Distribution`](#distribution) objects, each of which includes a `pickup` and `dropoff` property. `pickup` and `dropoff` properties correspond to an index in the OptimizationWaypoint array.
+         * @param {'geojson'|'polyline'|'polyline6'} [config.geometries="polyline"] - Format of the returned geometries.
+         * @param {string} [config.language="en"] - Language of returned turn-by-turn text instructions.
+         *   See options listed in [the HTTP service documentation](https://docs.mapbox.com/api/navigation/#instructions-languages).
+         * @param {'simplified'|'full'|'false'} [config.overview="simplified"] - Type of returned overview geometry.
+         * @param {boolean} [config.roundtrip=true] - Specifies whether the trip should complete by returning to the first location.
+         * @param {'any'|'first'} [config.source="any"] - To begin the route, start either from the first coordinate or let the Optimization API choose.
+         * @param {boolean} [config.steps=false] - Whether to return steps and turn-by-turn instructions.
+         * @return {MapiRequest}
+         */
         getContours(config: OptimizationRequest): MapiRequest;
     }
 
