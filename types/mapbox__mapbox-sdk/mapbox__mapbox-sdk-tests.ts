@@ -1,26 +1,38 @@
-import Client, { MapiClient, MapiClientConfig, MapiRequest, MapiResponse } from '@mapbox/mapbox-sdk';
-import Datasets, { Dataset, DatasetsService } from '@mapbox/mapbox-sdk/services/datasets';
-import Directions, { DirectionsService, DirectionsResponse } from '@mapbox/mapbox-sdk/services/directions';
+import Client, { MapiClientConfig } from '@mapbox/mapbox-sdk';
+import Datasets from '@mapbox/mapbox-sdk/services/datasets';
+import Directions from '@mapbox/mapbox-sdk/services/directions';
+import Geocoding from '@mapbox/mapbox-sdk/services/geocoding';
+import Isochrone from '@mapbox/mapbox-sdk/services/isochrone';
+import MapMatching from '@mapbox/mapbox-sdk/services/map-matching';
 import Styles, { StylesService } from '@mapbox/mapbox-sdk/services/styles';
 import StaticMap, { StaticMapService } from '@mapbox/mapbox-sdk/services/static';
 import { LineString } from 'geojson';
 import Tilesets, { TilesetsService } from '@mapbox/mapbox-sdk/services/tilesets';
 
-// MapiClient
+/**
+ * MapiClient
+ */
+
 const config: MapiClientConfig = {
     accessToken: 'access-token',
 };
-const client: MapiClient = Client(config);
 
-// DatasetsService
-const datasetsService: DatasetsService = Datasets(client);
+// $ExpectType MapiClient
+const client = Client(config);
+
+/**
+ * Datasets
+ */
+
+// $ExpectType DatasetsService
+const datasetsService = Datasets(client);
 
 datasetsService
     .listDatasets()
     .send()
     .then(response => {
-        const datasets: Dataset[] = response.body;
-        const count = datasets.length;
+        // $ExpectType Dataset[]
+        const datasets = response.body;
     });
 
 datasetsService
@@ -42,9 +54,8 @@ datasetsService
     })
     .send()
     .then(response => {
-        const dataset: Dataset = response.body;
-        const created = dataset.created;
-        const name = dataset.name;
+        // $ExpectType Dataset
+        const dataset = response.body;
     });
 
 datasetsService
@@ -53,9 +64,8 @@ datasetsService
     })
     .send()
     .then(response => {
-        const dataset: Dataset = response.body;
-        const features = dataset.features;
-        const size = dataset.size;
+        // $ExpectType Dataset
+        const dataset = response.body;
     });
 
 datasetsService
@@ -65,9 +75,8 @@ datasetsService
     })
     .send()
     .then(response => {
-        const dataset: Dataset = response.body;
-        const bounds = dataset.bounds;
-        const owner = dataset.owner;
+        // $ExpectType Dataset
+        const dataset = response.body;
     });
 
 datasetsService
@@ -87,12 +96,8 @@ datasetsService
     })
     .send()
     .then(response => {
+        // $ExpectType FeatureCollection
         const collection = response.body;
-        const bbox = collection.bbox;
-
-        for (const feature of collection.features) {
-            // List each feature.
-        }
     });
 
 datasetsService
@@ -110,9 +115,8 @@ datasetsService
     })
     .send()
     .then(response => {
+        // $ExpectType Feature
         const feature = response.body;
-        const geometry = feature.geometry;
-        const properties = feature.properties;
     });
 
 datasetsService
@@ -122,9 +126,8 @@ datasetsService
     })
     .send()
     .then(response => {
+        // $ExpectType Feature
         const feature = response.body;
-        const geometry = feature.geometry;
-        const properties = feature.properties;
     });
 
 datasetsService
@@ -139,8 +142,12 @@ datasetsService
         }
     });
 
-// DirectionsService
-const directionsService: DirectionsService = Directions(client);
+/**
+ * Directions
+ */
+
+// $ExpectType DirectionsService
+const directionsService = Directions(client);
 
 directionsService
     .getDirections({
@@ -161,20 +168,98 @@ directionsService
     })
     .send()
     .then(response => {
-      const directions = response.body;
-
-      for (const waypoint of directions.waypoints) {
-          // List each waypoint.
-      }
-
-      for (const route of directions.routes) {
-          for (const leg of route.legs) {
-              for (const step of leg.steps) {
-                  // List each route step.
-              }
-          }
-      }
+        // $ExpectType DirectionsResponse
+        const directions = response.body;
     });
+
+/**
+ * Geocoding
+ */
+
+// $ExpectType GeocodingService
+const geocodingService = Geocoding(client);
+
+geocodingService
+    .forwardGeocode({
+        query: 'Paris, France',
+        limit: 2
+    })
+    .send()
+    .then(response => {
+        // $ExpectType ForwardGeocodingResponse
+        const match = response.body;
+    });
+
+geocodingService
+    .forwardGeocode({
+        query: 'Paris, France',
+        proximity: [-95.4431142, 33.6875431]
+    })
+    .send()
+    .then(response => {
+        // $ExpectType ForwardGeocodingResponse
+        const match = response.body;
+    });
+
+geocodingService
+    .forwardGeocode({
+        query: 'Paris, France',
+        countries: ['fr']
+    })
+    .send()
+    .then(response => {
+        // $ExpectType ForwardGeocodingResponse
+        const match = response.body;
+    });
+
+geocodingService
+    .forwardGeocode({
+        query: 'Paris, France',
+        bbox: [2.14, 48.72, 2.55, 48.96]
+    })
+    .send()
+    .then(response => {
+        // $ExpectType ForwardGeocodingResponse
+        const match = response.body;
+    });
+
+geocodingService
+    .reverseGeocode({
+        query: [-95.4431142, 33.6875431]
+    })
+    .send()
+    .then(response => {
+        // $ExpectType ReverseGeocodingResponse
+        const match = response.body;
+    });
+
+/**
+ * Isochrone
+ */
+
+// $ExpectType IsochroneService
+const isochroneService = Isochrone(client);
+
+isochroneService
+    .getContours({
+        coordinates: [-118.22258, 33.99038],
+        minutes: [5, 10, 15],
+        profile: 'driving',
+        colors: ['6706ce', '04e813', '4286f4'],
+        polygons: true
+    })
+    .send()
+    .then(response => {
+        // $ExpectType IsochroneResponse
+        const isochrones = response.body;
+    });
+
+/**
+ * Map Matching
+ */
+
+// $ExpectType MapMatchingService
+const mapMatchingService = MapMatching(client);
 
 const stylesService: StylesService = Styles(config);
 stylesService.putStyleIcon({

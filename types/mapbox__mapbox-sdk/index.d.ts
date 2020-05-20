@@ -360,7 +360,17 @@ declare module '@mapbox/mapbox-sdk/services/datasets' {
          *     const datasetMetadata = response.body;
          *   });
          */
-        createDataset(config: { name?: string; description?: string }): MapiRequest<Dataset>;
+        createDataset(config: {
+            /**
+             * The name of the dataset.
+             */
+            name?: string;
+
+            /**
+             * A description of the dataset.
+             */
+            description?: string
+        }): MapiRequest<Dataset>;
 
         /**
          * Get metadata about a dataset.
@@ -379,7 +389,12 @@ declare module '@mapbox/mapbox-sdk/services/datasets' {
          *     const datasetMetadata = response.body;
          *   })
          */
-        getMetadata(config: { datasetId: string }): MapiRequest<Dataset>;
+        getMetadata(config: {
+            /**
+             * The ID of the dataset to be retrieved.
+             */
+            datasetId: string
+        }): MapiRequest<Dataset>;
 
         /**
          * Update user-defined properties of a dataset's metadata.
@@ -399,7 +414,22 @@ declare module '@mapbox/mapbox-sdk/services/datasets' {
          *     const datasetMetadata = response.body;
          *   });
          */
-        updateMetadata(config: { datasetId: string; name?: string; description?: string }): MapiRequest<Dataset>;
+        updateMetadata(config: {
+            /**
+             * The ID of the dataset to be updated.
+             */
+            datasetId: string;
+
+            /**
+             * The name of the dataset.
+             */
+            name?: string;
+
+            /**
+             * A description of the dataset.
+             */
+            description?: string
+        }): MapiRequest<Dataset>;
 
         /**
          * Delete a dataset, including all features it contains.
@@ -418,7 +448,12 @@ declare module '@mapbox/mapbox-sdk/services/datasets' {
          *     // Dataset is successfully deleted.
          *   });
          */
-        deleteDataset(config: { datasetId: string }): MapiRequest<void>;
+        deleteDataset(config: {
+            /**
+             * The ID of the dataset to be deleted.
+             */
+            datasetId: string
+        }): MapiRequest<void>;
 
         /**
          * List features in a dataset.
@@ -441,13 +476,19 @@ declare module '@mapbox/mapbox-sdk/services/datasets' {
          *   });
          */
         listFeatures(config: {
-            datasetId: string;
             /**
-             * Only list this number of features.
+             * The ID of the dataset for which to retrieve features.
+             */
+            datasetId: string;
+
+            /**
+             * The maximum number of features to return, from `1` to `100`. The default is `10`.
              */
             limit?: number;
+
             /**
-             * The ID of the feature from which the listing should start.
+             * The ID of the feature after which to start the listing. The feature ID is found in the `Link` header
+             * of a response. See the [pagination](https://docs.mapbox.com/api/#pagination) section for details.
              */
             start?: string
         }): MapiRequest<FeatureCollection>;
@@ -480,8 +521,16 @@ declare module '@mapbox/mapbox-sdk/services/datasets' {
          *   });
          */
         putFeature(config: {
+            /**
+             * The ID of the dataset for which to insert or update features.
+             */
             datasetId: string;
+
+            /**
+             * The ID of the feature to be inserted or updated.
+             */
             featureId: string;
+
             /**
              * Valid GeoJSON that is not a `FeatureCollection`. If the feature has a top-level
              * `id` property, it must match the `featureId` you specify.
@@ -507,7 +556,17 @@ declare module '@mapbox/mapbox-sdk/services/datasets' {
          *     const feature = response.body;
          *   });
          */
-        getFeature(config: { datasetId: string; featureId: string }): MapiRequest<Feature>;
+        getFeature(config: {
+            /**
+             * The ID of the dataset from which to retrieve a feature.
+             */
+            datasetId: string;
+
+            /**
+             * The ID of the feature to be retrieved.
+             */
+            featureId: string
+        }): MapiRequest<Feature>;
 
         /**
          * Delete a feature in a dataset.
@@ -527,7 +586,17 @@ declare module '@mapbox/mapbox-sdk/services/datasets' {
          *     // Feature is successfully deleted.
          *   });
          */
-        deleteFeature(config: { datasetId: string; featureId: string }): MapiRequest<void>;
+        deleteFeature(config: {
+            /**
+             * The ID of the dataset from which to delete a feature.
+             */
+            datasetId: string;
+
+            /**
+             * The ID of the feature to be deleted.
+             */
+            featureId: string
+        }): MapiRequest<void>;
     }
 
     /**
@@ -584,9 +653,7 @@ declare module '@mapbox/mapbox-sdk/services/datasets' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/directions' {
-    import * as GeoJSON from 'geojson';
-    import { LngLatLike } from 'mapbox-gl';
-    import { Feature, FeatureCollection } from 'geojson';
+    import { LineString } from 'geojson';
     import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
     export default function Directions(clientOrConfig: MapiClient | MapiClientConfig): DirectionsService;
@@ -605,7 +672,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
          * to understand all of the available options.
          *
          * @param {Object} config
-         * @return {MapiRequest<Directions>}
+         * @return {MapiRequest<DirectionsResponse>}
          *
          * @example
          * directionsClient.getDirections({
@@ -633,7 +700,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
             /**
              * Default: `'driving'`.
              */
-            profile?: DirectionsProfile;
+            profile?: RoutingProfile;
 
             /**
              * An ordered array of [`DirectionsWaypoint`](#directionswaypoint) objects,
@@ -702,11 +769,10 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
              * Which type of units to return in the text for voice instructions. Default: `'imperial'`.
              */
             voiceUnits?: DirectionsUnits;
-        }): MapiRequest<Directions>;
+        }): MapiRequest<DirectionsResponse>;
     }
 
-    type MapboxProfile = 'driving' | 'walking' | 'cycling';
-    type DirectionsProfile = 'driving-traffic' | MapboxProfile;
+    type RoutingProfile = 'driving-traffic' | 'driving' | 'walking' | 'cycling';
 
     type DirectionsApproach = 'unrestricted' | 'curb';
     type DirectionsAnnotation = 'duration' | 'distance' | 'speed' | 'congestion';
@@ -776,7 +842,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
      *
      * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#response-retrieve-directions).
      */
-    interface Directions {
+    interface DirectionsResponse {
         /**
          * An array of route objects ordered by descending recommendation rank.
          * The response object may contain at most two routes.
@@ -856,12 +922,12 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
          * geometry to the zoom level at which the route can be displayed in full (`simplified`), or is not
          * included (`false`).
          */
-        geometry: GeoJSON.LineString | string;
+        geometry: LineString | string;
 
         /**
          * An array of route leg objects.
          */
-        legs: Leg[];
+        legs: RouteLeg[];
 
         /**
          * A string of the locale used for voice instructions. Defaults to `en` (English). Can be any
@@ -877,7 +943,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
      *
      * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#route-leg-object).
      */
-    interface Leg {
+    interface RouteLeg {
         /**
          * A number indicating the distance traveled between waypoints in meters.
          */
@@ -892,7 +958,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
          * Depending on the optional `steps` parameter, either an array of route step objects (`steps=true`)
          * or an empty array (`steps=false`, default).
          */
-        steps: Step[];
+        steps: RouteStep[];
 
         /**
          * A string summarizing the route.
@@ -940,11 +1006,11 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
      *
      * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#route-step-object).
      */
-    interface Step {
+    interface RouteStep {
         /**
          * One step maneuver object.
          */
-        maneuver: Maneuver;
+        maneuver: StepManeuver;
 
         /**
          * A number indicating the distance traveled in meters from the maneuver to the next route step.
@@ -962,7 +1028,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
          * [Polyline string](https://developers.google.com/maps/documentation/utilities/polylinealgorithm)
          * representing the full route geometry from this route step to the next route step.
          */
-        geometry: GeoJSON.LineString | GeoJSON.MultiLineString;
+        geometry: LineString | string;
 
         /**
          * A string with the name of the road or path that forms part of the route step.
@@ -1033,7 +1099,7 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
      *
      * See the [corresponding documentation](https://docs.mapbox.com/api/navigation/#step-maneuver-object).
      */
-    interface Maneuver {
+    interface StepManeuver {
         /**
          * A number between `0` and `360` indicating the clockwise angle from true north to the direction of travel
          * immediately _before_ the maneuver.
@@ -1247,10 +1313,10 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
          * Objects that, together, make up what should be displayed in the banner.
          * Includes additional information intended to be used to aid in visual layout.
          */
-        components: BannerComponent[];
+        components: BannerInstructionComponent[];
     }
 
-    interface BannerComponent {
+    interface BannerInstructionComponent {
         /**
          * A string with more context about the component that may help in visual markup and display choices.
          * If the type of the component is unknown, it should be treated as text.
@@ -1302,26 +1368,214 @@ declare module '@mapbox/mapbox-sdk/services/directions' {
 }
 
 declare module '@mapbox/mapbox-sdk/services/geocoding' {
-    import { LngLatLike } from 'mapbox-gl';
+    import { Feature, FeatureCollection, GeoJsonProperties, Point } from 'geojson';
     import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
 
-    export default function Geocoding(clientOrConfig: MapiClient | MapiClientConfig): GeocodeService;
+    export default function Geocoding(clientOrConfig: MapiClient | MapiClientConfig): GeocodingService;
 
-    interface GeocodeService {
-        forwardGeocode(request: GeocodeRequest): MapiRequest;
-        reverseGeocode(request: GeocodeRequest): MapiRequest;
+    /**
+     * Geocoding API service.
+     *
+     * Learn more about this service and its responses in
+     * [the HTTP service documentation](https://docs.mapbox.com/api/search/#geocoding).
+     */
+    interface GeocodingService {
+        /**
+         * Search for a place.
+         *
+         * See the [public documentation](https://docs.mapbox.com/api/search/#forward-geocoding).
+         *
+         * @param {Object} config
+         * @return {MapiRequest<ForwardGeocodingResponse>}
+         *
+         * @example
+         * geocodingClient.forwardGeocode({
+         *   query: 'Paris, France',
+         *   limit: 2
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const match = response.body;
+         *   });
+         *
+         * @example
+         * // geocoding with proximity
+         * geocodingClient.forwardGeocode({
+         *   query: 'Paris, France',
+         *   proximity: [-95.4431142, 33.6875431]
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const match = response.body;
+         *   });
+         *
+         * // geocoding with countries
+         * geocodingClient.forwardGeocode({
+         *   query: 'Paris, France',
+         *   countries: ['fr']
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const match = response.body;
+         *   });
+         *
+         * // geocoding with bounding box
+         * geocodingClient.forwardGeocode({
+         *   query: 'Paris, France',
+         *   bbox: [2.14, 48.72, 2.55, 48.96]
+         * })
+         *   .send()
+         *   .then(response => {
+         *     const match = response.body;
+         *   });
+         */
+        forwardGeocode(config: {
+            /**
+             * A place name.
+             */
+            query: string;
+
+            /**
+             * Either `mapbox.places` for ephemeral geocoding, or `mapbox.places-permanent` for storing results
+             * and batch geocoding. Default: `mapbox.places`.
+             */
+            mode?: GeocodingEndpoint;
+
+            /**
+             * Limits results to the specified countries. Each item in the array should be an
+             * [ISO 3166 alpha 2 country code](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2).
+             */
+            countries?: string[];
+
+            /**
+             * Bias local results based on a provided location.
+             */
+            proximity?: [number, number];
+
+            /**
+             * Filter results by feature types.
+             */
+            types?: GeocodingDataType[];
+
+            /**
+             * Return autocomplete results or not. Default: `true`.
+             */
+            autocomplete?: boolean;
+
+            /**
+             * Limit results to a bounding box.
+             */
+            bbox?: [number, number, number, number];
+
+            /**
+             * Limit the number of results returned. Default: `5`.
+             */
+            limit?: number;
+
+            /**
+             * Specify the language to use for response text and, for forward geocoding, query result weighting.
+             * Options are [IETF language tags](https://en.wikipedia.org/wiki/IETF_language_tag) comprised of a
+             * mandatory [ISO 639-1 language code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) and
+             * optionally one or more IETF subtags for country or script.
+             */
+            language?: string[];
+
+            /**
+             * Specify whether to request additional metadata about the recommended navigation destination.
+             * Only applicable for address features. Default: `false`.
+             */
+            routing?: boolean;
+        }): MapiRequest<ForwardGeocodingResponse>;
+
+        /**
+         * Search for places near coordinates.
+         *
+         * See the [public documentation](https://docs.mapbox.com/api/search/#reverse-geocoding).
+         *
+         * @param {Object} config
+         * @return {MapiRequest<ReverseGeocodingResponse>}
+         *
+         * @example
+         * geocodingClient.reverseGeocode({
+         *   query: [-95.4431142, 33.6875431]
+         * })
+         *   .send()
+         *   .then(response => {
+         *     // GeoJSON document with geocoding matches
+         *     const match = response.body;
+         *   });
+         */
+        reverseGeocode(config: {
+            /**
+             * Coordinates at which features will be searched.
+             */
+            query: [number, number];
+
+            /**
+             * Either `mapbox.places` for ephemeral geocoding, or `mapbox.places-permanent` for storing results
+             * and batch geocoding. Default: `mapbox.places`.
+             */
+            mode?: GeocodingEndpoint;
+
+            /**
+             * Limits results to the specified countries. Each item in the array should be an
+             * [ISO 3166 alpha 2 country code](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2).
+             */
+            countries?: string[];
+
+            /**
+             * Filter results by feature types.
+             */
+            types?: GeocodingDataType[];
+
+            /**
+             * Limit results to a bounding box.
+             */
+            bbox?: [number, number, number, number];
+
+            /**
+             * Limit the number of results returned. If using this option, you must provide a single item for `types`.
+             * Default: `1`.
+             */
+            limit?: number;
+
+            /**
+             * Specify the language to use for response text and, for forward geocoding, query result weighting.
+             * Options are [IETF language tags](https://en.wikipedia.org/wiki/IETF_language_tag) comprised of a
+             * mandatory [ISO 639-1 language code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) and
+             * optionally one or more IETF subtags for country or script.
+             */
+            language?: string[];
+
+            /**
+             * Set the factors that are used to sort nearby results. Default: `distance`.
+             */
+            reverseMode?: 'distance' | 'score';
+
+            /**
+             * Specify whether to request additional metadata about the recommended navigation destination.
+             * Only applicable for address features. Default: `false`.
+             */
+            routing?: boolean;
+        }): MapiRequest<ReverseGeocodingResponse>;
     }
 
-    interface BoundingBox {
-        minLongitude: number;
-        minLatitude: number;
-        maxLongitude: number;
-        maxLatitude: number;
-    }
+    /**
+     * The geocoding API includes two different endpoints.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/search/#endpoints).
+     */
+    type GeocodingEndpoint = 'mapbox.places' | 'mapbox.places-permanent';
 
-    type GeocodeMode = 'mapbox.places' | 'mapbox.places-permanent';
-
-    type GeocodeQueryType =
+    /**
+     * Various types of geographic features are available in the Mapbox geocoder. Any type might appear as a top-level
+     * response, as context in a top-level response, or as a filtering option using the `types` parameter. Not all
+     * features are available or relevant in all parts of the world. New types are occasionally added as necessary to
+     * correctly capture global administrative hierarchies.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/search/#data-types).
+     */
+    type GeocodingDataType =
         | 'country'
         | 'region'
         | 'postcode'
@@ -1330,251 +1584,339 @@ declare module '@mapbox/mapbox-sdk/services/geocoding' {
         | 'locality'
         | 'neighborhood'
         | 'address'
-        | 'poi'
-        | 'poi.landmark';
+        | 'poi';
 
-    interface GeocodeRequest {
-        /**
-         * A location. This will be a place name for forward geocoding or a coordinate pair (longitude, latitude) for reverse geocoding.
-         */
-        query: string | LngLatLike;
-        /**
-         * Either  mapbox.places for ephemeral geocoding, or  mapbox.places-permanent for storing results and batch geocoding.
-         */
-        mode: GeocodeMode;
-        /**
-         * Limit results to one or more countries. Options are ISO 3166 alpha 2 country codes
-         */
-        countries?: string[];
-        /**
-         * Bias local results based on a provided location. Options are  longitude,latitude coordinates.
-         */
-        proximity?: number[];
-        /**
-         * Filter results by one or more feature types
-         */
-        types?: GeocodeQueryType[];
-        /**
-         * Forward geocoding only. Return autocomplete results or not. Options are  true or  false and the default is  true .
-         */
-        autocomplete?: boolean;
-        /**
-         * Forward geocoding only. Limit results to a bounding box. Options are in the format  minX,minY,maxX,maxY .
-         */
-        bbox?: BoundingBox;
-        /**
-         * Limit the number of results returned. The default is  5 for forward geocoding and  1 for reverse geocoding.
-         */
-        limit?: number;
-        /**
-         * Specify the language to use for response text and, for forward geocoding, query result weighting.
-         * Options are IETF language tags comprised of a mandatory ISO 639-1 language code and optionally one or more
-         * IETF subtags for country or script.
-         */
-        language?: string[];
-    }
+    type ForwardGeocodingResponse = GeocodingResponse<string[]>;
+    type ReverseGeocodingResponse = GeocodingResponse<[number, number]>;
 
-    interface GeocodeResponse {
+    /**
+     * The response to a Geocoding API request.
+     *
+     * See the [corresponding documentation](https://docs.mapbox.com/api/search/#geocoding-response-object).
+     */
+    interface GeocodingResponse<TQuery> extends FeatureCollection<Point, GeocodingFeatureProperties> {
         /**
-         * "Feature Collection" , a GeoJSON type from the GeoJSON specification.
+         * **Forward geocodes:** An array of space and punctuation-separated strings from the original query.
+         *
+         * **Reverse geocodes:** An array containing the coordinates being queried.
          */
-        type: string;
-        /**
-         * An array of space and punctuation-separated strings from the original query.
-         */
-        query: string[];
+        query: TQuery;
+
         /**
          * An array of feature objects.
+         *
+         * **Forward geocodes:** Returned features are ordered by `relevance`.
+         *
+         * **Reverse geocodes:** Returned features are ordered by index hierarchy, from most specific features to
+         * least specific features that overlap the queried coordinates.
+         *
+         * Read the
+         * [Search result prioritization](https://docs.mapbox.com/help/how-mapbox-works/geocoding/#search-result-prioritization)
+         * guide to learn more about how returned features are organized in the Geocoding API response.
          */
-        features: GeocodeFeature[];
+        features: GeocodingFeature[];
+
         /**
-         * A string attributing the results of the Mapbox Geocoding API to Mapbox and links to Mapbox's terms of service and data sources.
+         * A string that attributes the results of the Mapbox Geocoding API to Mapbox.
          */
         attribution: string;
     }
 
-    interface GeocodeFeature {
+    interface GeocodingFeature extends Feature<Point, GeocodingFeatureProperties> {
         /**
-         * A string feature id in the form  {type}.{id} where  {type} is the lowest hierarchy feature in the  place_type field.
-         * The  {id} suffix of the feature id is unstable and may change within versions.
+         * A feature ID in the format `{type}.{id}` where `{type}` is the lowest hierarchy feature in the `place_type`
+         * field. The `{id}` suffix of the feature ID is unstable and may change within versions.
          */
         id: string;
+
         /**
-         * "Feature" , a GeoJSON type from the GeoJSON specification.
+         * An array of feature types describing the feature. Options are `country`, `region`, `postcode`, `district`,
+         * `place`, `locality`, `neighborhood`, `address`, and `poi`. Most features have only one type, but if the
+         * feature has multiple types, all applicable types will be listed in the array. (For example, Vatican City
+         * is a `country`, `region`, and `place`.)
          */
-        type: string;
+        place_type: GeocodingDataType[];
+
         /**
-         * An array of feature types describing the feature. Options are  country ,  region ,  postcode ,  district ,  place , locality ,  neighborhood ,
-         * address ,  poi , and  poi.landmark . Most features have only one type, but if the feature has multiple types,
-         * all applicable types will be listed in the array. (For example, Vatican City is a  country , region , and  place .)
-         */
-        place_type: string[];
-        /**
-         * A numerical score from 0 (least relevant) to 0.99 (most relevant) measuring how well each returned feature matches the query.
-         * You can use the  relevance property to remove results that don't fully match the query.
+         * Indicates how well the returned feature matches the user's query on a scale from `0` to `1`. `0` means
+         * the result does not match the query text at all, while `1` means the result fully matches the query text.
+         * You can use the `relevance` property to remove results that don’t fully match the query. Learn more about
+         * textual relevance in the
+         * [Search result prioritization guide](https://docs.mapbox.com/help/how-mapbox-works/geocoding/#search-result-prioritization).
          */
         relevance: number;
+
         /**
-         * A string of the house number for the returned  address feature. Note that unlike the
-         * address property for  poi features, this property is outside the  properties object.
+         * A string of the house number for the returned `address` feature. Note that unlike the `address` property
+         * for `poi` features, this property is outside the `properties` object.
          */
         address?: string;
-        /**
-         * An object describing the feature. The property object is unstable and only Carmen GeoJSON properties are guaranteed.
-         * Your implementation should check for the presence of these values in a response before it attempts to use them.
-         */
-        properties: GeocodeProperties;
+
         /**
          * A string representing the feature in the requested language, if specified.
          */
         text: string;
+
         /**
          * A string representing the feature in the requested language, if specified, and its full result hierarchy.
          */
         place_name: string;
+
         /**
-         * A string analogous to the  text field that more closely matches the query than results in the specified language.
-         * For example, querying "Köln, Germany" with language set to English might return a feature with the
-         * text "Cologne" and the  matching_text "Köln".
+         * A string analogous to the `text` field that more closely matches the query than results in the specified
+         * language. For example, querying `Köln, Germany` with `language` set to English (`en`) might return a feature
+         * with the `text` `Cologne` and the `matching_text` `Köln`.
+         *
+         * Category matches will not appear as `matching_text`. For example, a query for `coffee, Köln` with `language`
+         * set to English (`en`) would return a `poi` `Café Reichard`, but this feature will not include a
+         * `matching_text` field.
          */
-        matching_text: string;
+        matching_text?: string;
+
         /**
-         * A string analogous to the  place_name field that more closely matches the query than results in the specified language.
-         * For example, querying "Köln, Germany" with language set to English might return a feature with the place_name "Cologne, Germany"
-         * and a  matching_place_name of "Köln, North Rhine-Westphalia, Germany".
+         * A string analogous to the `place_name` field that more closely matches the query than results in the
+         * specified language. For example, querying `Köln, Germany` with `language` set to English (`en`) might return
+         * a feature with the `place_name` `Cologne, Germany` and a `matching_place_name` of
+         * `Köln, North Rhine-Westphalia, Germany`.
+         *
+         * Category matches will not appear in the `matching_place_name` field. For example, a query for `coffee, Köln`
+         * with `language` set to English (`en`) would return a `matching_place_name` of
+         * `Café Reichard, Unter Fettenhennen 11, Köln, North Rhine-Westphalia 50667, Germany` instead of a
+         * `matching_place_name` of `coffee, Unter Fettenhennen 11, Köln, North Rhine-Westphalia 50667, Germany`.
          */
-        matching_place_name: string;
+        matching_place_name?: string;
+
         /**
-         * A string of the IETF language tag of the query's primary language.
-         * Can be used to identity text and place_name properties on this object
-         * in the format text_{language}, place_name_{language} and language_{language}
+         * A string of the [IETF language tag](https://en.wikipedia.org/wiki/IETF_language_tag) of the query's primary
+         * language.
+         *
+         * Can be used to identity additional properties on this object in the format `text_{language}`,
+         * `place_name_{language}` and `language_{language}`.
          */
-        language: string;
+        language?: string;
+
         /**
-         * An array bounding box in the form [ minX,minY,maxX,maxY ] .
+         * A bounding box array in the form `[minX,minY,maxX,maxY]`.
          */
-        bbox?: number[];
+        bbox: [number, number, number, number];
+
         /**
-         * An array in the form [ longitude,latitude ] at the center of the specified  bbox .
+         * The coordinates of the feature’s center in the form `[longitude,latitude]`. This may be the literal centroid
+         * of the feature’s geometry, or the center of human activity within the feature (for example, the downtown
+         * area of a city).
          */
-        center: number[];
+        center: [number, number];
+
         /**
-         * An object describing the spatial geometry of the returned feature
+         * An object describing the spatial geometry of the returned feature.
          */
-        geometry: Geometry;
+        geometry: GeocodingFeatureGeometry;
+
         /**
-         * An array representing the hierarchy of encompassing parent features. Each parent feature may include any of the above properties
+         * An array representing the hierarchy of encompassing parent features. Each parent feature may include any of
+         * the above properties.
          */
-        context: GeocodeFeature[];
+        context: GeocodingFeature[];
+
+        /**
+         * An object with the routable points for the feature.
+         */
+        routable_points?: {
+            /**
+             * An array of points in the form of `[{ coordinates: [lon, lat] }]`, or null if no points were found.
+             */
+            points: { coordinates: [number, number] }[];
+        };
     }
 
-    interface Geometry {
+    interface GeocodingFeatureGeometry extends Point {
         /**
-         * Point, a GeoJSON type from the GeoJSON specification .
+         * An array in the format `[longitude,latitude]` at the center of the specified `bbox`.
          */
-        type: string;
+        coordinates: [number, number];
+
         /**
-         * An array in the format [ longitude,latitude ] at the center of the specified  bbox .
+         * If present, indicates that an `address` is
+         * [interpolated](https://en.wikipedia.org/wiki/Geocoding#Address_interpolation) along a road network. The
+         * geocoder can usually return exact address points, but if an address is not present the geocoder can use
+         * interpolated data as a fallback. In edge cases, interpolation may not be possible if surrounding address
+         * data is not present, in which case the next fallback will be the center point of the street feature itself.
          */
-        coordinates: number[];
+        interpolated?: boolean;
+
         /**
-         * A boolean value indicating if an  address is interpolated along a road network. This field is only present when the feature is interpolated.
+         * If present, indicates an out-of-parity match. This occurs when an interpolated address is not in the
+         * expected range for the indicated side of the street.
          */
-        interpolated: boolean;
+        omitted?: boolean;
     }
 
-    interface GeocodeProperties extends GeocodeFeature {
+    /**
+     * An object describing the feature. The `properties` object may change with data improvements. Your
+     * implementation should check for the presence of these values in a response before it attempts to use them.
+     */
+    interface GeocodingFeatureProperties {
         /**
-         * The Wikidata identifier for the returned feature.
+         * A point accuracy metric for the returned `address` feature. Can be one of `rooftop`, `parcel`, `point`,
+         * `interpolated`, `intersection`, `street`. Note that this list is subject to change.
          */
-        wikidata?: string;
+        accuracy?: 'rooftop' | 'parcel' | 'point' | 'interpolated' | 'intersection' | 'street';
+
         /**
-         * A string of comma-separated categories for the returned  poi feature.
+         * A string of the full street address for the returned `poi` feature. Note that unlike the `address` property
+         * for `address` features, this property is inside the `properties` object.
+         */
+        address?: string;
+
+        /**
+         * A string of comma-separated categories for the returned `poi` feature.
          */
         category?: string;
+
         /**
-         * A formatted string of the telephone number for the returned  poi feature.
-         */
-        tel?: string;
-        /**
-         * The name of a suggested Maki icon to visualize a  poi feature based on its  category .
+         * The name of a suggested [Maki](https://www.mapbox.com/maki-icons/) icon to visualize a `poi` feature based
+         * on its `category`.
          */
         maki?: string;
+
         /**
-         * A boolean value indicating whether a  poi feature is a landmark. Landmarks are
-         * particularly notable or long-lived features like schools, parks, museums and places of worship.
+         * Describes whether or not the feature is in the `poi.landmark` data type. This data type is deprecated, and
+         * this property will be present on all `poi` features for backwards compatibility reasons but will always be `true`.
          */
         landmark?: boolean;
+
         /**
-         * The ISO 3166-1 country and ISO 3166-2 region code for the returned feature.
+         * The [Wikidata](https://wikidata.org/) identifier for the returned feature.
+         */
+        wikidata?: string;
+
+        /**
+         * The [ISO 3166-1](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) country and
+         * [ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2) region code for the returned feature.
          */
         short_code: string;
     }
 }
 
 declare module '@mapbox/mapbox-sdk/services/isochrone' {
+    import { Feature, FeatureCollection, LineString, Polygon } from 'geojson';
     import { MapiClient, MapiClientConfig, MapiRequest } from '@mapbox/mapbox-sdk';
-    import { MapboxProfile } from '@mapbox/mapbox-sdk/services/directions';
+    import { RoutingProfile } from '@mapbox/mapbox-sdk/services/directions';
 
-    /*********************************************************************************************************************
-     * Isochrone Types
-     *********************************************************************************************************************/
     export default function Isochrone(clientOrConfig: MapiClient | MapiClientConfig): IsochroneService;
 
+    /**
+     * Isochrone API service.
+     *
+     * Learn more about this service and its responses in
+     * [the HTTP service documentation](https://docs.mapbox.com/api/navigation/#isochrone).
+     */
     interface IsochroneService {
         /**
          * Given a location and a routing profile, retrieve up to four isochrone contours.
-         * @param request
+         *
+         * @param {Object} config
+         * @return {MapiRequest<IsochroneResponse>}
          */
-        getContours(request: IsochroneRequest): MapiRequest;
+        getContours(config: {
+            /**
+             * A Mapbox Directions routing profile ID. Default: `driving`.
+             */
+            profile?: Extract<RoutingProfile, 'driving' | 'walking' | 'cycling'>;
+
+            /**
+             * A `[longitude,latitude]` coordinate pair around which to center the isochrone lines.
+             */
+            coordinates: [number, number];
+
+            /**
+             * The times in minutes to use for each isochrone contour. You can specify up to four contours.
+             * Times must be in increasing order. The maximum time that can be specified is `60` minutes.
+             */
+            minutes: number[];
+
+            /**
+             * The colors to use for each isochrone contour, specified as hex values without a leading `#`
+             * (for example, `'ff0000'` for red). If this parameter is used, there must be the same number of
+             * `colors` as there are entries in `contours_minutes`. If no `colors` are specified, the Isochrone
+             * API will assign a default rainbow color scheme to the output.
+             */
+            colors?: string[];
+
+            /**
+             * Specify whether to return the contours as GeoJSON polygons (`true`) or linestrings (`false`, default).
+             * When `polygons=true`, any contour that forms a ring is returned as a polygon.
+             */
+            polygons?: boolean;
+
+            /**
+             * A floating point value from `0.0` to `1.0` that can be used to remove smaller contours. The default is
+             * `1.0`. A value of `1.0` will only return the largest contour for a given time value. A value of `0.5`
+             * drops any contours that are less than half the area of the largest contour in the set of contours for
+             * that same time value.
+             */
+            denoise?: number;
+
+            /**
+             * A positive floating point value in meters used as the tolerance for Douglas-Peucker generalization.
+             * There is no upper bound. If no value is specified in the request, the Isochrone API will choose the
+             * most optimized generalization to use for the request. Note that the generalization of contours can
+             * lead to self-intersections, as well as intersections of adjacent contours.
+             */
+            generalize?: number;
+        }): MapiRequest<IsochroneResponse>;
     }
 
-    interface IsochroneRequest {
+    /**
+     * The response to a Isochrone API request.
+     *
+     * See the
+     * [corresponding documentation](https://docs.mapbox.com/api/navigation/#response-retrieve-isochrones-around-a-location).
+     */
+    type IsochroneResponse = FeatureCollection<LineString | Polygon, IsochroneFeatureProperties>;
+
+    /**
+     * An object that describes how the isochrone should be drawn.
+     */
+    interface IsochroneFeatureProperties {
         /**
-         * A Mapbox Directions routing profile ID.
+         * The time in minutes used for the isochrone contour.
          */
-        profile: MapboxProfile;
+        contour: number;
 
         /**
-         * A  [longitude,latitude] coordinate pair around which to center the isochrone lines.
+         * The color of the isochrone line if the `geometry` property is `Linestring`.
          */
-        coordinates: [number, number];
+        color: string;
 
         /**
-         * The times in minutes to use for each isochrone contour. You can specify up to four contours.
-         * Times must be in increasing order. The maximum time that can be specified is 60 minutes.
+         * The opacity of the isochrone line if the `geometry` property is `Linestring`.
          */
-        minutes: number[];
+        opacity: number;
 
         /**
-         * The colors to use for each isochrone contour, specified as hex values without a leading #
-         * (for example, ff0000 for red). If this parameter is used, there must be the same number of
-         * colors as there are entries in contours_minutes. If no colors are specified, the Isochrone
-         * API will assign a default rainbow color scheme to the output.
+         * The fill color of the isochrone polygon if the `geometry` property is `Polygon`, suitable for use in
+         * [geojson.io](http://geojson.io/).
          */
-        colors?: string[];
+        fill: string;
 
         /**
-         * Specify whether to return the contours as GeoJSON polygons (true) or linestrings (false, default).
-         * When polygons=true, any contour that forms a ring is returned as a polygon.
+         * The fill opacity of the isochrone polygon if the `geometry` property is `Polygon`, suitable for use in
+         * [geojson.io](http://geojson.io/).
          */
-        polygons?: boolean;
+        'fill-opacity': number;
 
         /**
-         * A floating point value from 0.0 to 1.0 that can be used to remove smaller contours. The default is 1.0.
-         * A value of 1.0 will only return the largest contour for a given time value. A value of 0.5 drops any
-         * contours that are less than half the area of the largest contour in the set of contours for that same
-         * time value.
+         * The fill color of the isochrone polygon if the `geometry` property is `Polygon`, suitable for use in
+         * [Leaflet](https://leafletjs.com/).
          */
-        denoise?: number;
+        fillColor: string;
 
         /**
-         * A positive floating point value in meters used as the tolerance for Douglas-Peucker generalization.
-         * There is no upper bound. If no value is specified in the request, the Isochrone API will choose the
-         * most optimized generalization to use for the request. Note that the generalization of contours can
-         * lead to self-intersections, as well as intersections of adjacent contours.
+         * The fill opacity of the isochrone polygon if the `geometry` property is `Polygon`, suitable for use in
+         * [Leaflet](https://leafletjs.com/).
          */
-        generalize?: number;
+        fillOpacity: number;
     }
 }
 
